@@ -75,6 +75,7 @@ class Adventurer {
         this.direction = 'down'; // 'up', 'down', 'left', 'right'
         this.lastMove = null;
         this.stuckCounter = 0;
+        this.escapeMode = false; // 宝箱を取得後、脱出モード
     }
 
     update(deltaTime) {
@@ -84,31 +85,54 @@ class Adventurer {
         const floor = gameManager.dungeonData?.getFloor(1);
         if (!floor) return;
 
-        // 新しい移動先を決定
-        this.decideNextMove(floor);
+        // グリッド移動（上下左右のみ）
+        const currentX = Math.floor(this.x);
+        const currentY = Math.floor(this.y);
 
-        // 移動処理
-        const dx = this.targetX - this.x;
-        const dy = this.targetY - this.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        // 目標地点に到達しているかチェック
+        if (Math.abs(this.x - this.targetX) < 0.1 && Math.abs(this.y - this.targetY) < 0.1) {
+            this.x = this.targetX;
+            this.y = this.targetY;
 
-        if (distance > 0.1) {
-            const moveDistance = this.speed * deltaTime;
-            const ratio = Math.min(moveDistance / distance, 1);
-            this.x += dx * ratio;
-            this.y += dy * ratio;
-        } else {
-            // 目標地点に到達したら、その場所の処理
+            // 現在のタイルの処理
             this.processCurrentTile(floor);
+
+            // 新しい移動先を決定
+            this.decideNextMove(floor);
+        } else {
+            // 移動処理（スムーズに）
+            const dx = this.targetX - this.x;
+            const dy = this.targetY - this.y;
+            const moveDistance = this.speed * deltaTime;
+
+            if (Math.abs(dx) > 0.01) {
+                const moveX = Math.sign(dx) * Math.min(moveDistance, Math.abs(dx));
+                this.x += moveX;
+            }
+            if (Math.abs(dy) > 0.01) {
+                const moveY = Math.sign(dy) * Math.min(moveDistance, Math.abs(dy));
+                this.y += moveY;
+            }
         }
 
         if (this.hp <= 0) {
             this.isDead = true;
         }
 
-        // 階段に到達したら脱出
+        // 入口または階段に到達したら脱出
         const currentTile = floor.grid[Math.floor(this.y)][Math.floor(this.x)];
-        if (currentTile.type === 'stairs') {
+        if (this.escapeMode && currentTile.type === 'entrance') {
+            this.hasEscaped = true;
+            // 宝箱の価値に応じて評判を追加
+            const reputationGain = Math.floor(this.treasureCollected / 50);
+            if (reputationGain > 0) {
+                gameManager.reputation += reputationGain;
+                gameManager.addLog(`${this.name}が宝物を持って脱出！評判+${reputationGain}`, 'success');
+                gameManager.updateUI();
+            } else {
+                gameManager.addLog(`${this.name}が入口から脱出した！`, 'warning');
+            }
+        } else if (!this.escapeMode && currentTile.type === 'stairs') {
             this.hasEscaped = true;
             gameManager.addLog(`${this.name}が階段から脱出した！`, 'warning');
         }
@@ -118,18 +142,25 @@ class Adventurer {
         const currentX = Math.floor(this.x);
         const currentY = Math.floor(this.y);
 
-        // 目標地点に到達している場合のみ次の移動先を決定
-        const distToTarget = Math.sqrt(
-            Math.pow(this.targetX - this.x, 2) +
-            Math.pow(this.targetY - this.y, 2)
-        );
-        if (distToTarget > 0.1) return;
-
-        // 1. 直線状に宝箱があるかチェック
-        const treasure = this.findTreasureInSight(floor, currentX, currentY);
-        if (treasure) {
-            this.setTarget(treasure.x, treasure.y);
+        // 脱出モードの場合、入口を目指す
+        if (this.escapeMode) {
+            const entrance = this.findEntrance(floor);
+            if (entrance) {
+                const nextPos = this.findPathToTarget(floor, currentX, currentY, entrance.x, entrance.y);
+                if (nextPos) {
+                    this.setTarget(nextPos.x, nextPos.y);
+                }
+            }
             return;
+        }
+
+        // 1. 直線状に宝箱があるかチェック（勇者以外）
+        if (this.name !== '勇者') {
+            const treasure = this.findTreasureInSight(floor, currentX, currentY);
+            if (treasure) {
+                this.setTarget(treasure.x, treasure.y);
+                return;
+            }
         }
 
         // 2. 進行方向にモンスターがいるかチェック
@@ -201,7 +232,7 @@ class Adventurer {
     }
 
     findNextPathPosition(floor, x, y) {
-        // 優先順位: 1.前進 2.横移動 3.後退
+        // 上下左右のみ移動可能
         const dirMap = {
             'up': { dx: 0, dy: -1 },
             'down': { dx: 0, dy: 1 },
@@ -245,10 +276,49 @@ class Adventurer {
         return null;
     }
 
+    findEntrance(floor) {
+        for (let y = 0; y < floor.height; y++) {
+            for (let x = 0; x < floor.width; x++) {
+                if (floor.grid[y][x].type === 'entrance') {
+                    return { x, y };
+                }
+            }
+        }
+        return null;
+    }
+
+    findPathToTarget(floor, startX, startY, targetX, targetY) {
+        // 簡単な経路探索（入口への最短経路）
+        const dx = targetX - startX;
+        const dy = targetY - startY;
+
+        // X方向を優先
+        if (Math.abs(dx) > 0) {
+            const nextX = startX + Math.sign(dx);
+            if (this.canMoveTo(floor, nextX, startY)) {
+                this.direction = dx > 0 ? 'right' : 'left';
+                return { x: nextX, y: startY };
+            }
+        }
+
+        // Y方向を試す
+        if (Math.abs(dy) > 0) {
+            const nextY = startY + Math.sign(dy);
+            if (this.canMoveTo(floor, startX, nextY)) {
+                this.direction = dy > 0 ? 'down' : 'up';
+                return { x: startX, y: nextY };
+            }
+        }
+
+        // 迂回路を探す
+        return this.findNextPathPosition(floor, startX, startY);
+    }
+
     canMoveTo(floor, x, y) {
         if (!floor.isValidPosition(x, y)) return false;
         const tile = floor.grid[y][x];
-        return tile.type !== 'wall';
+        // 壁とエンティティが存在するタイルは通れない
+        return tile.type !== 'wall' && !tile.entity;
     }
 
     getSideDirections(direction) {
@@ -292,6 +362,15 @@ class Adventurer {
             if (value > 0) {
                 this.collectTreasure(value);
                 gameManager.addLog(`${this.name}が${tile.entity.name}を入手！ ${value}G`, 'warning');
+
+                // 宝箱を削除
+                tile.entity = null;
+
+                // 勇者以外は脱出モードへ
+                if (this.name !== '勇者') {
+                    this.escapeMode = true;
+                    gameManager.addLog(`${this.name}が宝物を持って脱出を開始！`, 'info');
+                }
             }
         }
     }

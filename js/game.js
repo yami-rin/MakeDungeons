@@ -59,6 +59,7 @@ class GameManager {
         this.dungeonCore = null;
         this.isDiscovered = false;  // ダンジョンが発見されたか
         this.discoveryDay = 3;  // 発見までの日数
+        this.dailyAdventurerCount = 0;  // その日に生成した冒険者数
     }
 
     init() {
@@ -284,13 +285,7 @@ class GameManager {
             this.discoverDungeon();
         }
 
-        // 発見された場合のみ冒険者が出現
-        if (this.isDiscovered) {
-            const spawnChance = 0.001 + (this.timeManager.currentDay * 0.0002);
-            if (Math.random() < spawnChance) {
-                this.spawnAdventurer();
-            }
-        }
+        // 冒険者の出現は日の始めに決定されるため、ここでは処理しない
 
         this.adventurers.forEach((adventurer, index) => {
             adventurer.update(deltaTime);
@@ -339,6 +334,14 @@ class GameManager {
         this.addLog(`新しい日が始まった！ ${this.timeManager.getDayString()}`, 'info');
         this.addLog(`ダンジョン収入: +${dailyIncome}DP`, 'success');
 
+        // 冒険者カウントをリセット
+        this.dailyAdventurerCount = 0;
+
+        // 発見されている場合、評判に基づいて冒険者を生成
+        if (this.isDiscovered) {
+            this.generateDailyAdventurers();
+        }
+
         // 発見までのカウントダウン
         if (!this.isDiscovered) {
             const daysLeft = this.discoveryDay - this.timeManager.currentDay;
@@ -350,18 +353,38 @@ class GameManager {
 
     discoverDungeon() {
         this.isDiscovered = true;
+        this.reputation = 3;  // 発見時に評判が3になる
         this.addLog('冒険者にダンジョンを発見された！', 'danger');
+        this.addLog('評判が3になりました！', 'info');
         this.addLog('今後、冒険者が定期的に襲来します！', 'danger');
+        this.generateDailyAdventurers();
         this.updateUI();
     }
 
     summonAdventurers() {
         if (!this.isDiscovered) {
             this.discoverDungeon();
-            // 即座に冒険者をスポーン
-            for (let i = 0; i < 3; i++) {
-                setTimeout(() => this.spawnAdventurer(), i * 1000);
-            }
+        }
+    }
+
+    generateDailyAdventurers() {
+        // 評判に基づいた最大冒険者数を計算（評判3ごとに+1、初期値1）
+        const maxAdventurers = 1 + Math.floor(this.reputation / 3);
+
+        // その日の冒険者数を決定（1～最大数）
+        const adventurerCount = Math.floor(Math.random() * maxAdventurers) + 1;
+
+        this.addLog(`本日の冒険者予定数: ${adventurerCount}人（最大: ${maxAdventurers}人）`, 'info');
+
+        // ランダムな時間に冒険者を生成
+        for (let i = 0; i < adventurerCount; i++) {
+            // 1日のランダムな時間に出現するようスケジュール
+            const spawnTime = Math.random() * this.timeManager.dayDuration;
+            setTimeout(() => {
+                if (!this.isGameOver && this.isDiscovered) {
+                    this.spawnAdventurer();
+                }
+            }, spawnTime);
         }
     }
 

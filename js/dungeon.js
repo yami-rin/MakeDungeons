@@ -204,16 +204,12 @@ class DungeonBuilder {
     }
 
     createWall() {
-        if (this.wallCost <= 0) {
-            gameManager.addLog('壁作成価格が0DPのため作成できません', 'warning');
-            return;
-        }
         // モードを切り替え
         this.wallMode = true;
         this.destroyMode = false;
         this.placementMode = false;
         this.moveMode = false;
-        gameManager.addLog(`壁を作るモード。床をクリックしてください（${this.wallCost}DP）`, 'info');
+        gameManager.addLog(`壁を作るモード。床をクリックしてください（${Math.max(0, this.wallCost)}DP）`, 'info');
     }
 
     destroyWall() {
@@ -254,7 +250,8 @@ class DungeonBuilder {
         // 壁作成モードの場合
         if (this.wallMode) {
             if (tile.type === 'floor' && !tile.entity) {
-                if (gameManager.spendDP(this.wallCost)) {
+                const cost = Math.max(0, this.wallCost);
+                if (gameManager.spendDP(cost)) {
                     tile.type = 'wall';
                     this.wallCost = Math.max(0, this.wallCost - 10);
                     this.updateWallCost();
@@ -377,12 +374,15 @@ class DungeonBuilder {
             // 特殊タイルの移動
             const oldTile = floor.grid[this.movingFrom.y][this.movingFrom.x];
             const specialType = this.movingEntity.type;
+            const targetOldType = targetTile.type;  // 移動先の元のタイプを保存
 
-            // 元の場所を通常の床にする
-            oldTile.type = 'floor';
+            // 元の場所を通常の床にする（特殊タイルが壁上にあった場合は壁のまま）
+            if (oldTile.type === specialType) {
+                oldTile.type = 'floor';
+            }
             oldTile.entity = null;
 
-            // 新しい場所に特殊タイルを配置
+            // 新しい場所に特殊タイルを配置（壁の上でも可能）
             targetTile.type = specialType;
 
             // コアの場合は位置も更新
