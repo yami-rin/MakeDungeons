@@ -74,9 +74,13 @@
                                     <span class="build-name">新しい階層</span>
                                     <span class="build-cost">DP: 1000</span>
                                 </button>
-                                <button class="build-btn" onclick="dungeonBuilder.expandRoom()">
-                                    <span class="build-name">部屋拡張</span>
-                                    <span class="build-cost">DP: 500</span>
+                                <button class="build-btn" onclick="dungeonBuilder.createWall()">
+                                    <span class="build-name">壁を作る</span>
+                                    <span class="build-cost" id="wallCost">DP: 10</span>
+                                </button>
+                                <button class="build-btn" onclick="dungeonBuilder.destroyWall()">
+                                    <span class="build-name">壁を壊す（部屋拡張）</span>
+                                    <span class="build-cost" id="expandCost">DP: 10</span>
                                 </button>
                             </div>
                         </div>

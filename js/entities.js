@@ -72,11 +72,22 @@ class Adventurer {
         this.isDead = false;
         this.hasEscaped = false;
         this.treasureCollected = 0;
+        this.direction = 'down'; // 'up', 'down', 'left', 'right'
+        this.lastMove = null;
+        this.stuckCounter = 0;
     }
 
     update(deltaTime) {
         if (this.isDead || this.hasEscaped) return;
 
+        // ダンジョンデータの取得
+        const floor = gameManager.dungeonData?.getFloor(1);
+        if (!floor) return;
+
+        // 新しい移動先を決定
+        this.decideNextMove(floor);
+
+        // 移動処理
         const dx = this.targetX - this.x;
         const dy = this.targetY - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
@@ -86,14 +97,228 @@ class Adventurer {
             const ratio = Math.min(moveDistance / distance, 1);
             this.x += dx * ratio;
             this.y += dy * ratio;
+        } else {
+            // 目標地点に到達したら、その場所の処理
+            this.processCurrentTile(floor);
         }
 
         if (this.hp <= 0) {
             this.isDead = true;
         }
 
-        if (this.y >= 8) {
+        // 階段に到達したら脱出
+        const currentTile = floor.grid[Math.floor(this.y)][Math.floor(this.x)];
+        if (currentTile.type === 'stairs') {
             this.hasEscaped = true;
+            gameManager.addLog(`${this.name}が階段から脱出した！`, 'warning');
+        }
+    }
+
+    decideNextMove(floor) {
+        const currentX = Math.floor(this.x);
+        const currentY = Math.floor(this.y);
+
+        // 目標地点に到達している場合のみ次の移動先を決定
+        const distToTarget = Math.sqrt(
+            Math.pow(this.targetX - this.x, 2) +
+            Math.pow(this.targetY - this.y, 2)
+        );
+        if (distToTarget > 0.1) return;
+
+        // 1. 直線状に宝箱があるかチェック
+        const treasure = this.findTreasureInSight(floor, currentX, currentY);
+        if (treasure) {
+            this.setTarget(treasure.x, treasure.y);
+            return;
+        }
+
+        // 2. 進行方向にモンスターがいるかチェック
+        const monster = this.findMonsterInPath(floor, currentX, currentY);
+        if (monster) {
+            // モンスターと戦闘
+            this.battleWithMonster(monster);
+            return;
+        }
+
+        // 3. 道なりに進む
+        const nextPos = this.findNextPathPosition(floor, currentX, currentY);
+        if (nextPos) {
+            this.setTarget(nextPos.x, nextPos.y);
+            this.lastMove = { x: currentX, y: currentY };
+        } else {
+            // 行き止まりの場合は戻る
+            if (this.lastMove) {
+                this.setTarget(this.lastMove.x, this.lastMove.y);
+            }
+        }
+    }
+
+    findTreasureInSight(floor, x, y) {
+        const directions = [
+            { dx: 0, dy: -1 }, // 上
+            { dx: 0, dy: 1 },  // 下
+            { dx: -1, dy: 0 }, // 左
+            { dx: 1, dy: 0 }   // 右
+        ];
+
+        for (let dir of directions) {
+            for (let dist = 1; dist < 10; dist++) {
+                const checkX = x + dir.dx * dist;
+                const checkY = y + dir.dy * dist;
+
+                if (!floor.isValidPosition(checkX, checkY)) break;
+
+                const tile = floor.grid[checkY][checkX];
+                if (tile.type === 'wall') break;
+
+                if (tile.entity && tile.entity.type === 'treasure' && !tile.entity.collected) {
+                    return { x: checkX, y: checkY };
+                }
+            }
+        }
+        return null;
+    }
+
+    findMonsterInPath(floor, x, y) {
+        const dirMap = {
+            'up': { dx: 0, dy: -1 },
+            'down': { dx: 0, dy: 1 },
+            'left': { dx: -1, dy: 0 },
+            'right': { dx: 1, dy: 0 }
+        };
+
+        const dir = dirMap[this.direction];
+        const nextX = x + dir.dx;
+        const nextY = y + dir.dy;
+
+        if (floor.isValidPosition(nextX, nextY)) {
+            const tile = floor.grid[nextY][nextX];
+            if (tile.entity && tile.entity.type === 'monster') {
+                return tile.entity;
+            }
+        }
+        return null;
+    }
+
+    findNextPathPosition(floor, x, y) {
+        // 優先順位: 1.前進 2.横移動 3.後退
+        const dirMap = {
+            'up': { dx: 0, dy: -1 },
+            'down': { dx: 0, dy: 1 },
+            'left': { dx: -1, dy: 0 },
+            'right': { dx: 1, dy: 0 }
+        };
+
+        // まず現在の方向に進めるか
+        const currentDir = dirMap[this.direction];
+        let nextX = x + currentDir.dx;
+        let nextY = y + currentDir.dy;
+
+        if (this.canMoveTo(floor, nextX, nextY) &&
+            !(this.lastMove && this.lastMove.x === nextX && this.lastMove.y === nextY)) {
+            return { x: nextX, y: nextY };
+        }
+
+        // 横方向を試す
+        const sideDirections = this.getSideDirections(this.direction);
+        for (let sideDir of sideDirections) {
+            const dir = dirMap[sideDir];
+            nextX = x + dir.dx;
+            nextY = y + dir.dy;
+            if (this.canMoveTo(floor, nextX, nextY) &&
+                !(this.lastMove && this.lastMove.x === nextX && this.lastMove.y === nextY)) {
+                this.direction = sideDir;
+                return { x: nextX, y: nextY };
+            }
+        }
+
+        // 後退
+        const oppositeDir = this.getOppositeDirection(this.direction);
+        const backDir = dirMap[oppositeDir];
+        nextX = x + backDir.dx;
+        nextY = y + backDir.dy;
+        if (this.canMoveTo(floor, nextX, nextY)) {
+            this.direction = oppositeDir;
+            return { x: nextX, y: nextY };
+        }
+
+        return null;
+    }
+
+    canMoveTo(floor, x, y) {
+        if (!floor.isValidPosition(x, y)) return false;
+        const tile = floor.grid[y][x];
+        return tile.type !== 'wall';
+    }
+
+    getSideDirections(direction) {
+        switch(direction) {
+            case 'up':
+            case 'down':
+                return ['left', 'right'];
+            case 'left':
+            case 'right':
+                return ['up', 'down'];
+            default:
+                return [];
+        }
+    }
+
+    getOppositeDirection(direction) {
+        switch(direction) {
+            case 'up': return 'down';
+            case 'down': return 'up';
+            case 'left': return 'right';
+            case 'right': return 'left';
+            default: return 'down';
+        }
+    }
+
+    processCurrentTile(floor) {
+        const currentX = Math.floor(this.x);
+        const currentY = Math.floor(this.y);
+        const tile = floor.grid[currentY][currentX];
+
+        // 罠の処理
+        if (tile.entity && tile.entity.type === 'trap') {
+            if (tile.entity.trigger(this)) {
+                gameManager.addLog(`${this.name}が${tile.entity.name}にかかった！ -${tile.entity.damage}HP`, 'danger');
+            }
+        }
+
+        // 宝箱の処理
+        if (tile.entity && tile.entity.type === 'treasure') {
+            const value = tile.entity.collect();
+            if (value > 0) {
+                this.collectTreasure(value);
+                gameManager.addLog(`${this.name}が${tile.entity.name}を入手！ ${value}G`, 'warning');
+            }
+        }
+    }
+
+    battleWithMonster(monster) {
+        // 簡易戦闘処理
+        const damage = this.battle(monster);
+        gameManager.addLog(`${this.name}が${monster.name}を攻撃！ ${damage}ダメージ`, 'info');
+
+        if (monster.hp <= 0) {
+            gameManager.addLog(`${monster.name}を倒した！`, 'success');
+            // モンスターを削除
+            const floor = gameManager.dungeonData?.getFloor(1);
+            if (floor) {
+                for (let y = 0; y < floor.height; y++) {
+                    for (let x = 0; x < floor.width; x++) {
+                        if (floor.grid[y][x].entity === monster) {
+                            floor.grid[y][x].entity = null;
+                            return;
+                        }
+                    }
+                }
+            }
+        } else {
+            // モンスターの反撃
+            const counterDamage = monster.battle(this);
+            gameManager.addLog(`${monster.name}の反撃！ ${counterDamage}ダメージ`, 'danger');
         }
     }
 

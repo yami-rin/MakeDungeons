@@ -19,7 +19,7 @@ class DungeonData {
         const floor1 = this.getFloor(1);
         if (floor1) {
             floor1.grid[core.y][core.x].type = 'core';
-            floor1.grid[core.y][core.x].entity = core;
+            // entityフィールドは使用しない（バグの原因）
         }
 
         this.dungeonCore = core;
@@ -185,6 +185,9 @@ class DungeonBuilder {
         this.moveMode = false;
         this.movingEntity = null;
         this.movingFrom = null;
+        this.wallMode = false;  // 壁作成モード
+        this.destroyMode = false;  // 壁破壊モード
+        this.wallCost = 10;  // 壁作成・破壊の共有価格
     }
 
     addFloor() {
@@ -200,20 +203,42 @@ class DungeonBuilder {
         }
     }
 
-    expandRoom() {
-        if (gameManager.spendDP(500)) {
-            const floor = gameManager.dungeonData.getFloor(dungeonViewer.currentFloor);
-            floor.expandRoom();
-            gameManager.addLog('部屋を拡張しました！', 'success');
-            dungeonViewer.render();
-        } else {
-            gameManager.addLog('DPが不足しています', 'warning');
+    createWall() {
+        if (this.wallCost <= 0) {
+            gameManager.addLog('壁作成価格が0DPのため作成できません', 'warning');
+            return;
         }
+        // モードを切り替え
+        this.wallMode = true;
+        this.destroyMode = false;
+        this.placementMode = false;
+        this.moveMode = false;
+        gameManager.addLog(`壁を作るモード。床をクリックしてください（${this.wallCost}DP）`, 'info');
+    }
+
+    destroyWall() {
+        // モードを切り替え
+        this.wallMode = false;
+        this.destroyMode = true;
+        this.placementMode = false;
+        this.moveMode = false;
+        gameManager.addLog(`壁を壊すモード。壁をクリックしてください（${this.wallCost}DP）`, 'info');
+    }
+
+    updateWallCost() {
+        // 価格表示を更新
+        const wallCostElement = document.getElementById('wallCost');
+        const expandCostElement = document.getElementById('expandCost');
+        if (wallCostElement) wallCostElement.textContent = `DP: ${Math.max(0, this.wallCost)}`;
+        if (expandCostElement) expandCostElement.textContent = `DP: ${this.wallCost}`;
     }
 
     selectEntity(entityType, entity) {
         this.selectedEntity = { type: entityType, data: entity };
         this.placementMode = true;
+        this.wallMode = false;
+        this.destroyMode = false;
+        this.moveMode = false;
         gameManager.addLog(`${entity.name}を選択しました。配置する場所をクリックしてください`, 'info');
     }
 
@@ -221,6 +246,48 @@ class DungeonBuilder {
         const floor = gameManager.dungeonData.getFloor(dungeonViewer.currentFloor);
         const tileX = Math.floor(x / dungeonViewer.tileSize);
         const tileY = Math.floor(y / dungeonViewer.tileSize);
+
+        if (!floor.isValidPosition(tileX, tileY)) return false;
+
+        const tile = floor.grid[tileY][tileX];
+
+        // 壁作成モードの場合
+        if (this.wallMode) {
+            if (tile.type === 'floor' && !tile.entity) {
+                if (gameManager.spendDP(this.wallCost)) {
+                    tile.type = 'wall';
+                    this.wallCost = Math.max(0, this.wallCost - 10);
+                    this.updateWallCost();
+                    gameManager.addLog('壁を作成しました', 'success');
+                    dungeonViewer.render();
+                    return true;
+                } else {
+                    gameManager.addLog('DPが不足しています', 'warning');
+                }
+            } else {
+                gameManager.addLog('その場所には壁を作成できません', 'warning');
+            }
+            return false;
+        }
+
+        // 壁破壊モードの場合
+        if (this.destroyMode) {
+            if (tile.type === 'wall') {
+                if (gameManager.spendDP(this.wallCost)) {
+                    tile.type = 'floor';
+                    this.wallCost += 10;
+                    this.updateWallCost();
+                    gameManager.addLog('壁を破壊しました', 'success');
+                    dungeonViewer.render();
+                    return true;
+                } else {
+                    gameManager.addLog('DPが不足しています', 'warning');
+                }
+            } else {
+                gameManager.addLog('壁ではありません', 'warning');
+            }
+            return false;
+        }
 
         // 移動モードの場合
         if (this.moveMode && this.movingEntity) {
@@ -245,7 +312,6 @@ class DungeonBuilder {
         }
 
         // 既存エンティティをクリックした場合（移動開始）
-        const tile = floor.grid[tileY][tileX];
         if (tile && (tile.entity || tile.type === 'core' || tile.type === 'entrance' || tile.type === 'stairs')) {
             this.startMoveEntity(tileX, tileY, tile);
             return true;
@@ -295,8 +361,8 @@ class DungeonBuilder {
             return false;
         }
 
-        // 移動先が壁の場合は移動できない
-        if (targetTile.type === 'wall') {
+        // 移動先が壁の場合、通常のエンティティは移動できないが、特殊タイルは配置可能
+        if (targetTile.type === 'wall' && this.movingFrom.type === 'entity') {
             gameManager.addLog('壁には配置できません', 'warning');
             return false;
         }
@@ -323,7 +389,7 @@ class DungeonBuilder {
             if (specialType === 'core' && gameManager.dungeonCore) {
                 gameManager.dungeonCore.x = newX;
                 gameManager.dungeonCore.y = newY;
-                targetTile.entity = gameManager.dungeonCore;
+                // entityフィールドは使用しない
             }
 
             gameManager.addLog('移動完了しました', 'success');
