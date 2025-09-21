@@ -18,6 +18,11 @@ class DungeonData {
 
         const floor1 = this.getFloor(1);
         if (floor1) {
+            // コア配置時も元のタイプを記録（dungeonBuilderが存在する場合）
+            if (typeof dungeonBuilder !== 'undefined' && dungeonBuilder.specialTileUnderlay) {
+                const coreKey = `1-${core.x}-${core.y}`;
+                dungeonBuilder.specialTileUnderlay[coreKey] = floor1.grid[core.y][core.x].type;
+            }
             floor1.grid[core.y][core.x].type = 'core';
             // entityフィールドは使用しない（バグの原因）
         }
@@ -74,6 +79,35 @@ class DungeonData {
         this.traps = saveData.traps;
         this.treasures = saveData.treasures;
         this.dungeonCore = saveData.dungeonCore || this.initializeDungeonCore();
+
+        // セーブデータから特殊タイルの位置を特定し、underlayを復元
+        this.restoreSpecialTileUnderlays();
+    }
+
+    restoreSpecialTileUnderlays() {
+        // dungeonBuilderが存在しない場合は何もしない
+        if (typeof dungeonBuilder === 'undefined' || !dungeonBuilder.specialTileUnderlay) {
+            return;
+        }
+
+        // 既存のunderlayをクリア
+        dungeonBuilder.specialTileUnderlay = {};
+
+        // 各フロアをチェックして特殊タイルの位置を記録
+        // (壁の上にある特殊タイルは壁として記録、それ以外は床として記録)
+        this.floors.forEach((floor, index) => {
+            const floorNumber = index + 1;
+            for (let y = 0; y < floor.height; y++) {
+                for (let x = 0; x < floor.width; x++) {
+                    const tileType = floor.grid[y][x].type;
+                    if (tileType === 'core' || tileType === 'entrance' || tileType === 'stairs') {
+                        const key = `${floorNumber}-${x}-${y}`;
+                        // デフォルトは床として記録（実際の下のタイプは不明なので）
+                        dungeonBuilder.specialTileUnderlay[key] = 'floor';
+                    }
+                }
+            }
+        });
     }
 }
 
@@ -115,6 +149,14 @@ class Floor {
             for (let x = mainRoom.x; x < mainRoom.x + mainRoom.width; x++) {
                 this.grid[y][x].type = 'floor';
             }
+        }
+
+        // 特殊タイルの初期配置時も元のタイプを記録（dungeonBuilderが存在する場合）
+        if (typeof dungeonBuilder !== 'undefined' && dungeonBuilder.specialTileUnderlay) {
+            const entranceKey = `${this.floorNumber}-5-1`;
+            const stairsKey = `${this.floorNumber}-5-8`;
+            dungeonBuilder.specialTileUnderlay[entranceKey] = this.grid[1][5].type;
+            dungeonBuilder.specialTileUnderlay[stairsKey] = this.grid[8][5].type;
         }
 
         this.grid[1][5].type = 'entrance';
@@ -189,6 +231,7 @@ class DungeonBuilder {
         this.wallMode = false;  // 壁作成モード
         this.destroyMode = false;  // 壁破壊モード
         this.wallCost = 10;  // 壁作成・破壊の共有価格
+        this.specialTileUnderlay = {};  // 特殊タイルの下にある元のタイルタイプを記録
     }
 
     addFloor() {
@@ -331,10 +374,7 @@ class DungeonBuilder {
             // 特殊タイル
             this.moveMode = true;
             this.movingEntity = { type: tile.type };
-            // 特殊タイルの下に壁があるかどうかを記録
-            this.movingFrom = { x, y, type: 'special', wasOnWall: false };
-            // 特殊タイルを移動する前に、元の場所の状態を保存
-            this.originalFloorType = 'floor';  // デフォルトは床
+            this.movingFrom = { x, y, type: 'special' };
             const nameMap = {
                 'core': 'ダンジョンコア',
                 'entrance': '入口',
@@ -381,18 +421,21 @@ class DungeonBuilder {
             // 特殊タイルの移動
             const oldTile = floor.grid[this.movingFrom.y][this.movingFrom.x];
             const specialType = this.movingEntity.type;
+            const oldKey = `${dungeonViewer.currentFloor}-${this.movingFrom.x}-${this.movingFrom.y}`;
+            const newKey = `${dungeonViewer.currentFloor}-${newX}-${newY}`;
 
-            // 元の場所を床に戻す（壁の上にあった場合は壁を保持）
-            oldTile.type = this.originalFloorType || 'floor';
+            // 元の場所のタイルタイプを復元
+            if (this.specialTileUnderlay[oldKey]) {
+                oldTile.type = this.specialTileUnderlay[oldKey];
+                delete this.specialTileUnderlay[oldKey];
+            } else {
+                // 記録がない場合はデフォルトで床に
+                oldTile.type = 'floor';
+            }
             oldTile.entity = null;
 
-            // 新しい場所に特殊タイルを配置
-            // 移動先が壁の場合、その状態を記録
-            if (targetTile.type === 'wall') {
-                this.originalFloorType = 'wall';
-            } else {
-                this.originalFloorType = 'floor';
-            }
+            // 新しい場所の元のタイプを記録してから特殊タイルを配置
+            this.specialTileUnderlay[newKey] = targetTile.type;
             targetTile.type = specialType;
 
             // コアの場合は位置も更新
