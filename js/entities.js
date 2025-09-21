@@ -120,22 +120,25 @@ class Adventurer {
             this.isDead = true;
         }
 
-        // 入口からのみ脱出可能
+        // 入口での脱出判定（HP半分以下または宝箱所持時のみ）
         const currentTile = floor.grid[Math.floor(this.y)][Math.floor(this.x)];
         if (currentTile.type === 'entrance') {
-            this.hasEscaped = true;
-            // 宝箱を持っている場合は評判を追加
-            if (this.treasureCollected > 0) {
-                const reputationGain = Math.floor(this.treasureCollected / 50);
-                if (reputationGain > 0) {
-                    gameManager.reputation += reputationGain;
-                    gameManager.addLog(`${this.name}が宝物を持って脱出！評判+${reputationGain}`, 'success');
-                    gameManager.updateUI();
+            // HPが半分以下または宝箱を持っている場合のみ脱出
+            if (this.hp <= this.maxHp / 2 || this.treasureCollected > 0) {
+                this.hasEscaped = true;
+                // 宝箱を持っている場合は評判を追加
+                if (this.treasureCollected > 0) {
+                    const reputationGain = Math.floor(this.treasureCollected / 50);
+                    if (reputationGain > 0) {
+                        gameManager.reputation += reputationGain;
+                        gameManager.addLog(`${this.name}が宝物を持って脱出！評判+${reputationGain}`, 'success');
+                        gameManager.updateUI();
+                    } else {
+                        gameManager.addLog(`${this.name}が入口から脱出した！`, 'warning');
+                    }
                 } else {
-                    gameManager.addLog(`${this.name}が入口から脱出した！`, 'warning');
+                    gameManager.addLog(`${this.name}がHPが少ないため撤退した！`, 'warning');
                 }
-            } else {
-                gameManager.addLog(`${this.name}が入口から脱出した！`, 'warning');
             }
         }
     }
@@ -144,8 +147,8 @@ class Adventurer {
         const currentX = Math.floor(this.x);
         const currentY = Math.floor(this.y);
 
-        // 脱出モードの場合、入口を目指す
-        if (this.escapeMode) {
+        // 脱出モードの場合、入口を目指す（HP半分以下または宝箱所持）
+        if (this.escapeMode || this.hp <= this.maxHp / 2) {
             const entrance = this.findEntrance(floor);
             if (entrance) {
                 const nextPos = this.findPathToTarget(floor, currentX, currentY, entrance.x, entrance.y);
@@ -173,7 +176,26 @@ class Adventurer {
             return;
         }
 
-        // 3. 道なりに進む
+        // 3. 道なりに進む（分岐点では30%の確率でランダムに方向転換）
+        const availableDirections = this.getAvailableDirections(floor, currentX, currentY);
+
+        // 分岐点（2方向以上進める）でランダム移動
+        if (availableDirections.length >= 2 && Math.random() < 0.3) {
+            // 前回とは違う方向をランダムに選択
+            const validDirs = availableDirections.filter(dir => {
+                return !(this.lastMove && dir.x === this.lastMove.x && dir.y === this.lastMove.y);
+            });
+
+            if (validDirs.length > 0) {
+                const randomDir = validDirs[Math.floor(Math.random() * validDirs.length)];
+                this.setTarget(randomDir.x, randomDir.y);
+                this.updateDirection(currentX, currentY, randomDir.x, randomDir.y);
+                this.lastMove = { x: currentX, y: currentY };
+                return;
+            }
+        }
+
+        // 通常の道なり移動
         const nextPos = this.findNextPathPosition(floor, currentX, currentY);
         if (nextPos) {
             this.setTarget(nextPos.x, nextPos.y);
@@ -440,6 +462,36 @@ class Adventurer {
             Math.pow(this.y - core.y, 2)
         );
         return distance < 0.5;
+    }
+
+    getAvailableDirections(floor, x, y) {
+        const directions = [];
+        const checks = [
+            { dx: 0, dy: -1, dir: 'up' },
+            { dx: 0, dy: 1, dir: 'down' },
+            { dx: -1, dy: 0, dir: 'left' },
+            { dx: 1, dy: 0, dir: 'right' }
+        ];
+
+        for (let check of checks) {
+            const nextX = x + check.dx;
+            const nextY = y + check.dy;
+            if (this.canMoveTo(floor, nextX, nextY)) {
+                directions.push({ x: nextX, y: nextY, dir: check.dir });
+            }
+        }
+
+        return directions;
+    }
+
+    updateDirection(currentX, currentY, targetX, targetY) {
+        const dx = targetX - currentX;
+        const dy = targetY - currentY;
+
+        if (dx > 0) this.direction = 'right';
+        else if (dx < 0) this.direction = 'left';
+        else if (dy > 0) this.direction = 'down';
+        else if (dy < 0) this.direction = 'up';
     }
 }
 
