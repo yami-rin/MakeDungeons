@@ -353,7 +353,6 @@ class GameManager {
         if (this.adventurers.some(adv => adv.isDead || adv.hasEscaped)) {
             this.adventurers = this.adventurers.filter(adv => !adv.isDead && !adv.hasEscaped);
         }
-        });
 
         dungeonViewer.render();
     }
