@@ -49,6 +49,7 @@
                 <div class="header-buttons">
                     <button onclick="gameManager.saveGame()">セーブ</button>
                     <button id="summonBtn" onclick="gameManager.summonAdventurers()" style="display:none;">冒険者を呼ぶ</button>
+                    <button onclick="gameManager.toggleDebugMenu()">デバッグ</button>
                     <button onclick="gameManager.showMenu()">メニュー</button>
                 </div>
             </header>
@@ -132,6 +133,31 @@
                 <div class="activity-log">
                     <h3>活動ログ</h3>
                     <div id="logContent" class="log-content"></div>
+                </div>
+
+                <!-- デバッグメニュー -->
+                <div id="debugMenu" class="debug-menu" style="display:none;">
+                    <h3>デバッグメニュー</h3>
+                    <div class="debug-controls">
+                        <div class="debug-item">
+                            <label>DP:</label>
+                            <input type="number" id="debugDP" value="0" min="0" max="999999">
+                            <button onclick="gameManager.setDP(document.getElementById('debugDP').value)">設定</button>
+                        </div>
+                        <div class="debug-item">
+                            <label>評判:</label>
+                            <input type="number" id="debugReputation" value="0" min="0" max="999">
+                            <button onclick="gameManager.setReputation(document.getElementById('debugReputation').value)">設定</button>
+                        </div>
+                        <div class="debug-item">
+                            <button onclick="gameManager.addDP(1000)">DP +1000</button>
+                            <button onclick="gameManager.addDP(10000)">DP +10000</button>
+                        </div>
+                        <div class="debug-item">
+                            <button onclick="gameManager.spawnAdventurer()">冒険者生成</button>
+                            <button onclick="gameManager.clearAdventurers()">冒険者全削除</button>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>

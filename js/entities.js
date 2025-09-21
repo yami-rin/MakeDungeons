@@ -29,6 +29,7 @@ class Trap {
         if (!this.triggered) {
             adventurer.takeDamage(this.damage);
             this.triggered = true;
+            // 5秒後に罠が再度使用可能になる
             setTimeout(() => {
                 this.triggered = false;
             }, 5000);
@@ -354,6 +355,13 @@ class Adventurer {
         if (tile.entity && tile.entity.type === 'trap') {
             if (tile.entity.trigger(this)) {
                 gameManager.addLog(`${this.name}が${tile.entity.name}にかかった！ -${tile.entity.damage}HP`, 'danger');
+
+                // HPが0以下になったら死亡
+                if (this.hp <= 0) {
+                    this.hp = 0;
+                    this.isDead = true;
+                    gameManager.addLog(`${this.name}が罠で倒された！`, 'success');
+                }
             }
         }
 

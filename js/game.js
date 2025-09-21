@@ -194,6 +194,30 @@ class GameManager {
         document.getElementById('titleScreen').classList.add('active');
     }
 
+    toggleDebugMenu() {
+        const debugMenu = document.getElementById('debugMenu');
+        if (debugMenu) {
+            debugMenu.style.display = debugMenu.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    setDP(value) {
+        this.dp = parseInt(value) || 0;
+        this.updateUI();
+        this.addLog(`DPを${this.dp}に設定しました`, 'info');
+    }
+
+    setReputation(value) {
+        this.reputation = parseInt(value) || 0;
+        this.updateUI();
+        this.addLog(`評判を${this.reputation}に設定しました`, 'info');
+    }
+
+    clearAdventurers() {
+        this.adventurers = [];
+        this.addLog('すべての冒険者を削除しました', 'info');
+    }
+
     updateUI() {
         document.getElementById('dpValue').textContent = this.dp;
         document.getElementById('floorValue').textContent = this.floor;
@@ -314,6 +338,22 @@ class GameManager {
         const baseLevel = Math.floor(this.timeManager.currentDay / 3) + 1;
         const level = Math.min(baseLevel + Math.floor(Math.random() * 3), 10);
         const adventurer = new Adventurer(name, level);
+
+        // 入口の位置を找してスポーン
+        const floor = this.dungeonData?.getFloor(1);
+        if (floor) {
+            for (let y = 0; y < floor.height; y++) {
+                for (let x = 0; x < floor.width; x++) {
+                    if (floor.grid[y][x].type === 'entrance') {
+                        adventurer.x = x;
+                        adventurer.y = y;
+                        adventurer.targetX = x;
+                        adventurer.targetY = y;
+                        break;
+                    }
+                }
+            }
+        }
 
         this.adventurers.push(adventurer);
         this.timeManager.todayAdventurers++;

@@ -105,22 +105,44 @@ class DungeonViewer {
         const centerY = y + this.tileSize / 2;
         const radius = this.tileSize / 3;
 
+        // エンティティの背景円
         this.ctx.fillStyle = this.colors[entity.type];
         this.ctx.beginPath();
         this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         this.ctx.fill();
 
+        // エンティティの詳細表示
         this.ctx.fillStyle = '#ffffff';
-        this.ctx.font = '12px sans-serif';
+        this.ctx.font = 'bold 10px sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
 
-        let symbol = '';
-        if (entity.type === 'monster') symbol = 'M';
-        else if (entity.type === 'trap') symbol = 'T';
-        else if (entity.type === 'treasure') symbol = '$';
-
-        this.ctx.fillText(symbol, centerX, centerY);
+        if (entity.type === 'monster') {
+            // モンスターの表示
+            const shortName = entity.name.substring(0, 3);
+            this.ctx.fillText(shortName, centerX, centerY - 5);
+            this.ctx.font = '9px sans-serif';
+            this.ctx.fillText(`Lv${entity.level}`, centerX, centerY + 7);
+        } else if (entity.type === 'trap') {
+            // 罠の表示
+            this.ctx.font = '16px sans-serif';
+            this.ctx.fillText('⚠', centerX, centerY - 3);
+            this.ctx.font = '8px sans-serif';
+            this.ctx.fillText(`${entity.damage}`, centerX, centerY + 8);
+        } else if (entity.type === 'treasure') {
+            // 宝箱の表示
+            if (!entity.collected) {
+                this.ctx.font = '16px sans-serif';
+                this.ctx.fillText('📦', centerX, centerY - 3);
+                this.ctx.font = '8px sans-serif';
+                this.ctx.fillText(`${entity.value}G`, centerX, centerY + 8);
+            } else {
+                // 収集済みの宝箱
+                this.ctx.fillStyle = '#666666';
+                this.ctx.font = '12px sans-serif';
+                this.ctx.fillText('✗', centerX, centerY);
+            }
+        }
     }
 
     drawAdventurer(adventurer) {
