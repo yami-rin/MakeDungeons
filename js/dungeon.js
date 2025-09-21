@@ -34,6 +34,17 @@ class DungeonData {
     addFloor() {
         const newFloorNumber = this.floors.length + 1;
         this.floors.push(new Floor(newFloorNumber));
+
+        // 前の階層に階段を追加（まだない場合）
+        const prevFloor = this.getFloor(newFloorNumber - 1);
+        if (prevFloor && prevFloor.grid[8][5].type !== 'stairs') {
+            prevFloor.grid[8][5].type = 'stairs';
+            if (typeof dungeonBuilder !== 'undefined' && dungeonBuilder.specialTileUnderlay) {
+                const stairsKey = `${newFloorNumber - 1}-5-8`;
+                dungeonBuilder.specialTileUnderlay[stairsKey] = 'floor';
+            }
+        }
+
         return newFloorNumber;
     }
 
@@ -154,13 +165,21 @@ class Floor {
         // 特殊タイルの初期配置時も元のタイプを記録（dungeonBuilderが存在する場合）
         if (typeof dungeonBuilder !== 'undefined' && dungeonBuilder.specialTileUnderlay) {
             const entranceKey = `${this.floorNumber}-5-1`;
-            const stairsKey = `${this.floorNumber}-5-8`;
             dungeonBuilder.specialTileUnderlay[entranceKey] = this.grid[1][5].type;
-            dungeonBuilder.specialTileUnderlay[stairsKey] = this.grid[8][5].type;
         }
 
+        // 入口は常に表示
         this.grid[1][5].type = 'entrance';
-        this.grid[8][5].type = 'stairs';
+
+        // 階段は次の階層がある場合のみ表示（ゲームマネージャーが初期化されている場合）
+        if (typeof gameManager !== 'undefined' && gameManager.dungeonData &&
+            this.floorNumber < gameManager.dungeonData.floors.length) {
+            this.grid[8][5].type = 'stairs';
+            if (typeof dungeonBuilder !== 'undefined' && dungeonBuilder.specialTileUnderlay) {
+                const stairsKey = `${this.floorNumber}-5-8`;
+                dungeonBuilder.specialTileUnderlay[stairsKey] = 'floor';
+            }
+        }
     }
 
     placeEntity(entity, x, y) {

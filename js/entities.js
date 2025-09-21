@@ -148,10 +148,10 @@ class Adventurer {
                 // 次の階の階段位置にワープ
                 const nextFloor = gameManager.dungeonData?.getFloor(this.currentFloor);
                 if (nextFloor) {
-                    // 階段を探す
+                    // 入口を探す
                     for (let y = 0; y < nextFloor.height; y++) {
                         for (let x = 0; x < nextFloor.width; x++) {
-                            if (nextFloor.grid[y][x].type === 'stairs' || nextFloor.grid[y][x].type === 'entrance') {
+                            if (nextFloor.grid[y][x].type === 'entrance') {
                                 this.x = x;
                                 this.y = y;
                                 this.targetX = x;
@@ -335,29 +335,58 @@ class Adventurer {
     }
 
     findPathToTarget(floor, startX, startY, targetX, targetY) {
-        // 簡単な経路探索（入口への最短経路）
-        const dx = targetX - startX;
-        const dy = targetY - startY;
+        // A*風の経路探索アルゴリズム（簡易版）
+        const visited = new Set();
+        const queue = [{ x: startX, y: startY, dist: 0 }];
+        const parent = {};
+        const key = (x, y) => `${x},${y}`;
 
-        // X方向を優先
-        if (Math.abs(dx) > 0) {
-            const nextX = startX + Math.sign(dx);
-            if (this.canMoveTo(floor, nextX, startY)) {
-                this.direction = dx > 0 ? 'right' : 'left';
-                return { x: nextX, y: startY };
+        visited.add(key(startX, startY));
+
+        while (queue.length > 0) {
+            // マンハッタン距離でソート
+            queue.sort((a, b) => {
+                const aDist = Math.abs(a.x - targetX) + Math.abs(a.y - targetY) + a.dist;
+                const bDist = Math.abs(b.x - targetX) + Math.abs(b.y - targetY) + b.dist;
+                return aDist - bDist;
+            });
+
+            const current = queue.shift();
+
+            // 目標に到達
+            if (current.x === targetX && current.y === targetY) {
+                // 経路を遡って最初の一歩を返す
+                let step = current;
+                while (parent[key(step.x, step.y)]) {
+                    const prev = parent[key(step.x, step.y)];
+                    if (prev.x === startX && prev.y === startY) {
+                        this.updateDirection(startX, startY, step.x, step.y);
+                        return { x: step.x, y: step.y };
+                    }
+                    step = prev;
+                }
+            }
+
+            // 隣接マスを探索
+            const directions = [
+                { dx: 0, dy: -1 }, { dx: 0, dy: 1 },
+                { dx: -1, dy: 0 }, { dx: 1, dy: 0 }
+            ];
+
+            for (let dir of directions) {
+                const nextX = current.x + dir.dx;
+                const nextY = current.y + dir.dy;
+                const nextKey = key(nextX, nextY);
+
+                if (!visited.has(nextKey) && this.canMoveTo(floor, nextX, nextY)) {
+                    visited.add(nextKey);
+                    parent[nextKey] = current;
+                    queue.push({ x: nextX, y: nextY, dist: current.dist + 1 });
+                }
             }
         }
 
-        // Y方向を試す
-        if (Math.abs(dy) > 0) {
-            const nextY = startY + Math.sign(dy);
-            if (this.canMoveTo(floor, startX, nextY)) {
-                this.direction = dy > 0 ? 'down' : 'up';
-                return { x: startX, y: nextY };
-            }
-        }
-
-        // 迂回路を探す
+        // 経路が見つからない場合は通常の移動
         return this.findNextPathPosition(floor, startX, startY);
     }
 
@@ -434,10 +463,22 @@ class Adventurer {
         const damage = this.battle(monster);
         gameManager.addLog(`${this.name}が${monster.name}を攻撃！ ${damage}ダメージ`, 'info');
 
+        // ダメージエフェクトを表示
+        const floor = gameManager.dungeonData?.getFloor(this.currentFloor);
+        if (floor && dungeonViewer.currentFloor === this.currentFloor) {
+            for (let y = 0; y < floor.height; y++) {
+                for (let x = 0; x < floor.width; x++) {
+                    if (floor.grid[y][x].entity === monster) {
+                        dungeonViewer.addEffect('damage', x, y, `-${damage}`, '#ff4444');
+                        break;
+                    }
+                }
+            }
+        }
+
         if (monster.hp <= 0) {
             gameManager.addLog(`${monster.name}を倒した！`, 'success');
             // モンスターを削除
-            const floor = gameManager.dungeonData?.getFloor(1);
             if (floor) {
                 for (let y = 0; y < floor.height; y++) {
                     for (let x = 0; x < floor.width; x++) {
@@ -452,6 +493,11 @@ class Adventurer {
             // モンスターの反撃
             const counterDamage = monster.battle(this);
             gameManager.addLog(`${monster.name}の反撃！ ${counterDamage}ダメージ`, 'danger');
+
+            // 冒険者へのダメージエフェクト
+            if (dungeonViewer.currentFloor === this.currentFloor) {
+                dungeonViewer.addEffect('damage', Math.floor(this.x), Math.floor(this.y), `-${counterDamage}`, '#ffaa00');
+            }
         }
     }
 

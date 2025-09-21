@@ -16,6 +16,8 @@ class DungeonViewer {
             selected: '#ffffff',
             core: '#ff1744'
         };
+        this.effects = [];  // ビジュアルエフェクト用
+        this.lastTime = Date.now();
     }
 
     init() {
@@ -53,6 +55,9 @@ class DungeonViewer {
                 this.drawAdventurer(adventurer);
             }
         });
+
+        // エフェクトの描画
+        this.updateAndDrawEffects();
 
         document.getElementById('currentFloor').textContent = `${this.currentFloor}F`;
     }
@@ -183,6 +188,47 @@ class DungeonViewer {
             this.currentFloor--;
             this.render();
         }
+    }
+
+    addEffect(type, x, y, text, color) {
+        this.effects.push({
+            type: type,
+            x: x * this.tileSize + this.tileSize / 2,
+            y: y * this.tileSize + this.tileSize / 2,
+            text: text,
+            color: color,
+            alpha: 1.0,
+            offsetY: 0,
+            lifetime: 1000  // 1秒間表示
+        });
+    }
+
+    updateAndDrawEffects() {
+        const currentTime = Date.now();
+        const deltaTime = currentTime - this.lastTime;
+        this.lastTime = currentTime;
+
+        // エフェクトの更新と描画
+        this.effects = this.effects.filter(effect => {
+            effect.lifetime -= deltaTime;
+            if (effect.lifetime <= 0) return false;
+
+            // 上に浮かび上がるアニメーション
+            effect.offsetY -= deltaTime * 0.03;
+            effect.alpha = effect.lifetime / 1000;
+
+            // エフェクトの描画
+            this.ctx.save();
+            this.ctx.globalAlpha = effect.alpha;
+            this.ctx.fillStyle = effect.color;
+            this.ctx.font = 'bold 16px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(effect.text, effect.x, effect.y + effect.offsetY);
+            this.ctx.restore();
+
+            return true;
+        });
     }
 }
 

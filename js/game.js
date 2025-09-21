@@ -218,6 +218,34 @@ class GameManager {
         this.addLog('すべての冒険者を削除しました', 'info');
     }
 
+    countAllMonsters() {
+        let count = 0;
+        this.dungeonData.floors.forEach(floor => {
+            for (let y = 0; y < floor.height; y++) {
+                for (let x = 0; x < floor.width; x++) {
+                    if (floor.grid[y][x].entity && floor.grid[y][x].entity.type === 'monster') {
+                        count++;
+                    }
+                }
+            }
+        });
+        return count;
+    }
+
+    countAllTraps() {
+        let count = 0;
+        this.dungeonData.floors.forEach(floor => {
+            for (let y = 0; y < floor.height; y++) {
+                for (let x = 0; x < floor.width; x++) {
+                    if (floor.grid[y][x].entity && floor.grid[y][x].entity.type === 'trap') {
+                        count++;
+                    }
+                }
+            }
+        });
+        return count;
+    }
+
     updateUI() {
         document.getElementById('dpValue').textContent = this.dp;
         document.getElementById('floorValue').textContent = this.floor;
@@ -363,10 +391,12 @@ class GameManager {
 
     startNewDay() {
         const dungeonSize = this.dungeonData.floors.length;
-        const dailyIncome = dungeonSize * 100 + this.reputation * 10;
+        const monsterCount = this.countAllMonsters();
+        const trapCount = this.countAllTraps();
+        const dailyIncome = dungeonSize * 100 + this.reputation * 10 + monsterCount * 5 + trapCount * 3;
         this.addDP(dailyIncome);
         this.addLog(`新しい日が始まった！ ${this.timeManager.getDayString()}`, 'info');
-        this.addLog(`ダンジョン収入: +${dailyIncome}DP`, 'success');
+        this.addLog(`ダンジョン収入: +${dailyIncome}DP (階層:${dungeonSize * 100} 評判:${this.reputation * 10} モンスター:${monsterCount * 5} 罠:${trapCount * 3})`, 'success');
 
         // 冒険者カウントをリセット
         this.dailyAdventurerCount = 0;
