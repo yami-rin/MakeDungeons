@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ダンジョンマスター - ダンジョン運営ゲーム</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- タイトル画面 -->
+        <div id="titleScreen" class="screen active">
+            <div class="title-container">
+                <h1 class="game-title">ダンジョンマスター</h1>
+                <p class="subtitle">～最強のダンジョンを作り上げろ～</p>
+                <div class="menu-buttons">
+                    <button class="menu-btn" onclick="gameManager.startNewGame()">はじめから</button>
+                    <button class="menu-btn" onclick="gameManager.continueGame()">続きから</button>
+                </div>
+                <div class="version">Ver 1.0.0</div>
+            </div>
+        </div>
+
+        <!-- ゲーム画面 -->
+        <div id="gameScreen" class="screen">
+            <header class="game-header">
+                <div class="status-bar">
+                    <div class="status-item">
+                        <span class="status-label">DP:</span>
+                        <span id="dpValue" class="status-value">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">階層:</span>
+                        <span id="floorValue" class="status-value">1</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">評判:</span>
+                        <span id="reputationValue" class="status-value">0</span>
+                    </div>
+                </div>
+                <div class="header-buttons">
+                    <button onclick="gameManager.saveGame()">セーブ</button>
+                    <button onclick="gameManager.showMenu()">メニュー</button>
+                </div>
+            </header>
+
+            <main class="game-main">
+                <div class="dungeon-container">
+                    <div class="dungeon-controls">
+                        <div class="control-tabs">
+                            <button class="tab-btn active" data-tab="build">建設</button>
+                            <button class="tab-btn" data-tab="monsters">モンスター</button>
+                            <button class="tab-btn" data-tab="traps">罠</button>
+                            <button class="tab-btn" data-tab="treasures">宝箱</button>
+                        </div>
+                        <div class="tab-content" id="buildTab">
+                            <h3>ダンジョン建設</h3>
+                            <div class="build-options">
+                                <button class="build-btn" onclick="dungeonBuilder.addFloor()">
+                                    <span class="build-name">新しい階層</span>
+                                    <span class="build-cost">DP: 1000</span>
+                                </button>
+                                <button class="build-btn" onclick="dungeonBuilder.expandRoom()">
+                                    <span class="build-name">部屋拡張</span>
+                                    <span class="build-cost">DP: 500</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="tab-content" id="monstersTab" style="display:none;">
+                            <h3>モンスター配置</h3>
+                            <div class="monster-list" id="monsterList"></div>
+                        </div>
+                        <div class="tab-content" id="trapsTab" style="display:none;">
+                            <h3>罠設置</h3>
+                            <div class="trap-list" id="trapList"></div>
+                        </div>
+                        <div class="tab-content" id="treasuresTab" style="display:none;">
+                            <h3>宝箱配置</h3>
+                            <div class="treasure-list" id="treasureList"></div>
+                        </div>
+                    </div>
+
+                    <div class="dungeon-view">
+                        <div class="floor-selector">
+                            <button onclick="dungeonViewer.previousFloor()">◀</button>
+                            <span id="currentFloor">1F</span>
+                            <button onclick="dungeonViewer.nextFloor()">▶</button>
+                        </div>
+                        <canvas id="dungeonCanvas" width="800" height="600"></canvas>
+                    </div>
+                </div>
+
+                <div class="activity-log">
+                    <h3>活動ログ</h3>
+                    <div id="logContent" class="log-content"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/game.js"></script>
+    <script src="js/dungeon.js"></script>
+    <script src="js/entities.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

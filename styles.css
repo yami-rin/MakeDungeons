@@ -1,0 +1,371 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+    color: #ffffff;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+#app {
+    width: 100%;
+    height: 100vh;
+    position: relative;
+}
+
+.screen {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: none;
+}
+
+.screen.active {
+    display: flex;
+}
+
+/* タイトル画面 */
+#titleScreen {
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(ellipse at center, #2a2a4a 0%, #1a1a2e 100%);
+}
+
+.title-container {
+    text-align: center;
+    animation: fadeIn 1s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.game-title {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    text-shadow: 0 0 20px rgba(139, 69, 19, 0.8),
+                 0 0 40px rgba(139, 69, 19, 0.4);
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: #a0a0c0;
+    margin-bottom: 3rem;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+}
+
+.menu-btn {
+    width: 250px;
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #4a4a6a, #3a3a5a);
+    color: #ffffff;
+    border: 2px solid #6a6a8a;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.menu-btn:hover {
+    background: linear-gradient(135deg, #5a5a7a, #4a4a6a);
+    border-color: #8a8aaa;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(106, 106, 138, 0.4);
+}
+
+.version {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    color: #606080;
+    font-size: 0.9rem;
+}
+
+/* ゲーム画面 */
+#gameScreen {
+    flex-direction: column;
+}
+
+.game-header {
+    background: #2a2a3e;
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #3a3a4e;
+}
+
+.status-bar {
+    display: flex;
+    gap: 2rem;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-label {
+    color: #8a8aaa;
+    font-size: 0.9rem;
+}
+
+.status-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ffd700;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+.header-buttons button {
+    padding: 0.5rem 1.5rem;
+    background: #3a3a5a;
+    color: #ffffff;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.header-buttons button:hover {
+    background: #4a4a6a;
+}
+
+.game-main {
+    flex: 1;
+    display: flex;
+    padding: 1rem;
+    gap: 1rem;
+    overflow: hidden;
+}
+
+.dungeon-container {
+    flex: 1;
+    display: flex;
+    gap: 1rem;
+}
+
+.dungeon-controls {
+    width: 300px;
+    background: #2a2a3e;
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.control-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 0.5rem;
+    background: #3a3a5a;
+    color: #aaaacc;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+}
+
+.tab-btn.active {
+    background: #4a4a7a;
+    color: #ffffff;
+}
+
+.tab-btn:hover:not(.active) {
+    background: #404060;
+}
+
+.tab-content h3 {
+    margin-bottom: 1rem;
+    color: #ffd700;
+}
+
+.build-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.build-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #3a3a5a;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.build-btn:hover {
+    background: #4a4a6a;
+    border-color: #5a5a7a;
+}
+
+.build-cost {
+    color: #ffd700;
+    font-size: 0.9rem;
+}
+
+.dungeon-view {
+    flex: 1;
+    background: #2a2a3e;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.floor-selector {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.floor-selector button {
+    padding: 0.5rem 1rem;
+    background: #3a3a5a;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.floor-selector button:hover {
+    background: #4a4a6a;
+}
+
+#currentFloor {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #ffd700;
+}
+
+#dungeonCanvas {
+    background: #1a1a2e;
+    border: 2px solid #3a3a4e;
+    border-radius: 4px;
+}
+
+.activity-log {
+    width: 300px;
+    background: #2a2a3e;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.activity-log h3 {
+    margin-bottom: 1rem;
+    color: #ffd700;
+}
+
+.log-content {
+    flex: 1;
+    overflow-y: auto;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.log-entry {
+    padding: 0.5rem;
+    border-bottom: 1px solid #3a3a4e;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.log-entry.success {
+    color: #4ade80;
+}
+
+.log-entry.warning {
+    color: #fbbf24;
+}
+
+.log-entry.danger {
+    color: #f87171;
+}
+
+.log-entry.info {
+    color: #60a5fa;
+}
+
+/* モンスター、罠、宝箱リスト */
+.monster-list, .trap-list, .treasure-list {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.entity-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #3a3a5a;
+    border: 1px solid #4a4a6a;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.entity-item:hover {
+    background: #4a4a6a;
+    border-color: #5a5a7a;
+}
+
+.entity-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.entity-name {
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.entity-stats {
+    font-size: 0.8rem;
+    color: #aaaacc;
+}
+
+.entity-cost {
+    color: #ffd700;
+    font-size: 0.9rem;
+}
