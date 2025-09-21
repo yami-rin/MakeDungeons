@@ -13,7 +13,8 @@ class DungeonViewer {
             trap: '#a78bfa',
             treasure: '#fbbf24',
             adventurer: '#60a5fa',
-            selected: '#ffffff'
+            selected: '#ffffff',
+            core: '#ff1744'
         };
     }
 
@@ -75,6 +76,14 @@ class DungeonViewer {
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             this.ctx.fillText('階', px + this.tileSize / 2, py + this.tileSize / 2);
+        } else if (tile.type === 'core') {
+            this.ctx.fillStyle = this.colors.core;
+            this.ctx.fillRect(px + 5, py + 5, this.tileSize - 10, this.tileSize - 10);
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = 'bold 16px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText('CORE', px + this.tileSize / 2, py + this.tileSize / 2);
         }
 
         if (tile.entity) {

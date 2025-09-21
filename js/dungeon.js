@@ -4,6 +4,26 @@ class DungeonData {
         this.monsters = [];
         this.traps = [];
         this.treasures = [];
+        this.dungeonCore = null;
+    }
+
+    initializeDungeonCore() {
+        const core = {
+            x: 5,
+            y: 5,
+            hp: 100,
+            maxHp: 100,
+            type: 'core'
+        };
+
+        const floor1 = this.getFloor(1);
+        if (floor1) {
+            floor1.grid[core.y][core.x].type = 'core';
+            floor1.grid[core.y][core.x].entity = core;
+        }
+
+        this.dungeonCore = core;
+        return core;
     }
 
     addFloor() {
@@ -39,7 +59,8 @@ class DungeonData {
             floors: this.floors.map(floor => floor.getSaveData()),
             monsters: this.monsters,
             traps: this.traps,
-            treasures: this.treasures
+            treasures: this.treasures,
+            dungeonCore: this.dungeonCore
         };
     }
 
@@ -52,6 +73,7 @@ class DungeonData {
         this.monsters = saveData.monsters;
         this.traps = saveData.traps;
         this.treasures = saveData.treasures;
+        this.dungeonCore = saveData.dungeonCore || this.initializeDungeonCore();
     }
 }
 

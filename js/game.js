@@ -1,3 +1,50 @@
+class TimeManager {
+    constructor() {
+        this.currentDay = 1;
+        this.currentTime = 0;
+        this.dayDuration = 600000;
+        this.dayStartTime = Date.now();
+        this.todayAdventurers = 0;
+        this.todayDPEarned = 0;
+        this.todayDPSpent = 0;
+        this.isNewDay = false;
+    }
+
+    update() {
+        const elapsed = Date.now() - this.dayStartTime;
+        this.currentTime = (elapsed / this.dayDuration) * 100;
+
+        if (elapsed >= this.dayDuration) {
+            this.endDay();
+        }
+
+        return this.currentTime;
+    }
+
+    endDay() {
+        gameManager.showDayReport();
+        gameManager.autoSave();
+        this.currentDay++;
+        this.dayStartTime = Date.now();
+        this.currentTime = 0;
+        this.todayAdventurers = 0;
+        this.todayDPEarned = 0;
+        this.todayDPSpent = 0;
+        this.isNewDay = true;
+        gameManager.startNewDay();
+    }
+
+    getTimeString() {
+        const hours = Math.floor(this.currentTime * 24 / 100);
+        const minutes = Math.floor((this.currentTime * 24 * 60 / 100) % 60);
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    }
+
+    getDayString() {
+        return `Day ${this.currentDay}`;
+    }
+}
+
 class GameManager {
     constructor() {
         this.dp = 1000;
@@ -7,10 +54,14 @@ class GameManager {
         this.isPaused = false;
         this.adventurers = [];
         this.lastUpdate = Date.now();
+        this.timeManager = new TimeManager();
+        this.isGameOver = false;
+        this.dungeonCore = null;
     }
 
     init() {
         this.dungeonData = new DungeonData();
+        this.dungeonCore = this.dungeonData.initializeDungeonCore();
         this.updateUI();
         this.startGameLoop();
     }
@@ -20,11 +71,15 @@ class GameManager {
         this.floor = 1;
         this.reputation = 0;
         this.dungeonData = new DungeonData();
+        this.dungeonCore = this.dungeonData.initializeDungeonCore();
         this.adventurers = [];
+        this.timeManager = new TimeManager();
+        this.isGameOver = false;
 
         this.showGameScreen();
         this.updateUI();
         this.addLog('新しいダンジョンの運営を開始しました！', 'success');
+        this.addLog('ダンジョンコアを守り抜け！', 'warning');
     }
 
     continueGame() {
@@ -35,6 +90,12 @@ class GameManager {
             this.reputation = saveData.reputation;
             this.dungeonData = new DungeonData();
             this.dungeonData.loadFromSave(saveData.dungeonData);
+            this.dungeonCore = this.dungeonData.dungeonCore;
+            if (saveData.timeManager) {
+                this.timeManager.currentDay = saveData.timeManager.currentDay;
+                this.timeManager.dayStartTime = Date.now();
+            }
+            this.isGameOver = false;
 
             this.showGameScreen();
             this.updateUI();
@@ -50,11 +111,48 @@ class GameManager {
             floor: this.floor,
             reputation: this.reputation,
             dungeonData: this.dungeonData.getSaveData(),
+            timeManager: {
+                currentDay: this.timeManager.currentDay,
+                todayAdventurers: this.timeManager.todayAdventurers,
+                todayDPEarned: this.timeManager.todayDPEarned,
+                todayDPSpent: this.timeManager.todayDPSpent
+            },
             timestamp: Date.now()
         };
 
         localStorage.setItem('dungeonMasterSave', JSON.stringify(saveData));
         this.addLog('ゲームをセーブしました', 'success');
+    }
+
+    autoSave() {
+        const saveData = {
+            dp: this.dp,
+            floor: this.floor,
+            reputation: this.reputation,
+            dungeonData: this.dungeonData.getSaveData(),
+            timeManager: {
+                currentDay: this.timeManager.currentDay,
+                todayAdventurers: this.timeManager.todayAdventurers,
+                todayDPEarned: this.timeManager.todayDPEarned,
+                todayDPSpent: this.timeManager.todayDPSpent
+            },
+            timestamp: Date.now()
+        };
+
+        localStorage.setItem('dungeonMasterDaily', JSON.stringify(saveData));
+    }
+
+    loadDailyBackup() {
+        const saveStr = localStorage.getItem('dungeonMasterDaily');
+        if (saveStr) {
+            try {
+                return JSON.parse(saveStr);
+            } catch (e) {
+                console.error('日次バックアップの読み込みに失敗:', e);
+                return null;
+            }
+        }
+        return null;
     }
 
     loadGameData() {
@@ -85,16 +183,30 @@ class GameManager {
         document.getElementById('dpValue').textContent = this.dp;
         document.getElementById('floorValue').textContent = this.floor;
         document.getElementById('reputationValue').textContent = this.reputation;
+
+        const dayElement = document.getElementById('dayValue');
+        const timeElement = document.getElementById('timeValue');
+        if (dayElement) dayElement.textContent = this.timeManager.getDayString();
+        if (timeElement) timeElement.textContent = this.timeManager.getTimeString();
+
+        if (this.dungeonCore) {
+            const coreHPElement = document.getElementById('coreHPValue');
+            if (coreHPElement) {
+                coreHPElement.textContent = `${this.dungeonCore.hp}/${this.dungeonCore.maxHp}`;
+            }
+        }
     }
 
     addDP(amount) {
         this.dp += amount;
+        this.timeManager.todayDPEarned += amount;
         this.updateUI();
     }
 
     spendDP(amount) {
         if (this.dp >= amount) {
             this.dp -= amount;
+            this.timeManager.todayDPSpent += amount;
             this.updateUI();
             return true;
         }
@@ -128,16 +240,28 @@ class GameManager {
     }
 
     update() {
+        if (this.isGameOver) return;
+
         const now = Date.now();
         const deltaTime = (now - this.lastUpdate) / 1000;
         this.lastUpdate = now;
 
-        if (Math.random() < 0.001) {
+        this.timeManager.update();
+        this.updateUI();
+
+        const spawnChance = 0.001 + (this.timeManager.currentDay * 0.0002);
+        if (Math.random() < spawnChance) {
             this.spawnAdventurer();
         }
 
         this.adventurers.forEach((adventurer, index) => {
             adventurer.update(deltaTime);
+
+            if (this.dungeonCore && adventurer.checkCoreReached(this.dungeonCore)) {
+                this.gameOver('冒険者がダンジョンコアに到達した！');
+                return;
+            }
+
             if (adventurer.isDead || adventurer.hasEscaped) {
                 this.adventurers.splice(index, 1);
                 if (adventurer.isDead) {
@@ -161,11 +285,72 @@ class GameManager {
         const name = names[Math.floor(Math.random() * names.length)] +
                      Math.floor(Math.random() * 100);
 
-        const level = Math.floor(Math.random() * 5) + 1;
+        const baseLevel = Math.floor(this.timeManager.currentDay / 3) + 1;
+        const level = Math.min(baseLevel + Math.floor(Math.random() * 3), 10);
         const adventurer = new Adventurer(name, level);
 
         this.adventurers.push(adventurer);
+        this.timeManager.todayAdventurers++;
         this.addLog(`${name} (Lv.${level}) が侵入してきた！`, 'danger');
+    }
+
+    startNewDay() {
+        const dungeonSize = this.dungeonData.floors.length;
+        const dailyIncome = dungeonSize * 100 + this.reputation * 10;
+        this.addDP(dailyIncome);
+        this.addLog(`新しい日が始まった！ ${this.timeManager.getDayString()}`, 'info');
+        this.addLog(`ダンジョン収入: +${dailyIncome}DP`, 'success');
+    }
+
+    showDayReport() {
+        const report = `
+            === Day ${this.timeManager.currentDay} 終了報告 ===
+            冒険者襲来数: ${this.timeManager.todayAdventurers}人
+            DP獲得: +${this.timeManager.todayDPEarned}DP
+            DP支出: -${this.timeManager.todayDPSpent}DP
+            収支: ${this.timeManager.todayDPEarned - this.timeManager.todayDPSpent}DP
+        `;
+
+        this.addLog('=== 1日が終了しました ===', 'info');
+        this.addLog(`冒険者襲来数: ${this.timeManager.todayAdventurers}人`, 'info');
+        this.addLog(`DP収支: ${this.timeManager.todayDPEarned - this.timeManager.todayDPSpent}DP`, 'info');
+    }
+
+    gameOver(reason) {
+        this.isGameOver = true;
+        this.isPaused = true;
+        this.addLog(`ゲームオーバー: ${reason}`, 'danger');
+
+        setTimeout(() => {
+            if (confirm(`${reason}\n\n今日の開始時点に戻りますか？`)) {
+                this.retryFromDayStart();
+            } else {
+                this.showMenu();
+            }
+        }, 1000);
+    }
+
+    retryFromDayStart() {
+        const dailyBackup = this.loadDailyBackup();
+        if (dailyBackup) {
+            this.dp = dailyBackup.dp;
+            this.floor = dailyBackup.floor;
+            this.reputation = dailyBackup.reputation;
+            this.dungeonData = new DungeonData();
+            this.dungeonData.loadFromSave(dailyBackup.dungeonData);
+            this.dungeonCore = this.dungeonData.dungeonCore;
+            this.timeManager.currentDay = dailyBackup.timeManager.currentDay;
+            this.timeManager.dayStartTime = Date.now();
+            this.adventurers = [];
+            this.isGameOver = false;
+            this.isPaused = false;
+
+            this.updateUI();
+            this.addLog('今日の開始時点に戻りました', 'success');
+        } else {
+            alert('日次バックアップが見つかりません');
+            this.showMenu();
+        }
     }
 }
 

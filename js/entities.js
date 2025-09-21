@@ -119,6 +119,15 @@ class Adventurer {
         this.targetX = x;
         this.targetY = y;
     }
+
+    checkCoreReached(core) {
+        if (!core) return false;
+        const distance = Math.sqrt(
+            Math.pow(this.x - core.x, 2) +
+            Math.pow(this.y - core.y, 2)
+        );
+        return distance < 0.5;
+    }
 }
 
 const monsterTemplates = [
