@@ -57,6 +57,8 @@ class GameManager {
         this.timeManager = new TimeManager();
         this.isGameOver = false;
         this.dungeonCore = null;
+        this.isDiscovered = false;  // ダンジョンが発見されたか
+        this.discoveryDay = 3;  // 発見までの日数
     }
 
     init() {
@@ -73,11 +75,14 @@ class GameManager {
         this.adventurers = [];
         this.timeManager = new TimeManager();
         this.isGameOver = false;
+        this.isDiscovered = false;
+        this.discoveryDay = 3;
 
         this.showGameScreen();
         this.updateUI();
         this.addLog('新しいダンジョンの運営を開始しました！', 'success');
         this.addLog('ダンジョンコアを守り抜け！', 'warning');
+        this.addLog('3日後に冒険者がこのダンジョンを発見する予定です...', 'info');
 
         // デバッグ用
         console.log('Game started. Time system initialized:', this.timeManager);
@@ -98,6 +103,8 @@ class GameManager {
                 this.timeManager.dayStartTime = Date.now();
             }
             this.isGameOver = false;
+            this.isDiscovered = saveData.isDiscovered || false;
+            this.discoveryDay = saveData.discoveryDay || 3;
 
             this.showGameScreen();
             this.updateUI();
@@ -119,6 +126,8 @@ class GameManager {
                 todayDPEarned: this.timeManager.todayDPEarned,
                 todayDPSpent: this.timeManager.todayDPSpent
             },
+            isDiscovered: this.isDiscovered,
+            discoveryDay: this.discoveryDay,
             timestamp: Date.now()
         };
 
@@ -138,6 +147,8 @@ class GameManager {
                 todayDPEarned: this.timeManager.todayDPEarned,
                 todayDPSpent: this.timeManager.todayDPSpent
             },
+            isDiscovered: this.isDiscovered,
+            discoveryDay: this.discoveryDay,
             timestamp: Date.now()
         };
 
@@ -196,6 +207,16 @@ class GameManager {
             const coreHPElement = document.getElementById('coreHPValue');
             if (coreHPElement) {
                 coreHPElement.textContent = `${this.dungeonCore.hp}/${this.dungeonCore.maxHp}`;
+            }
+        }
+
+        // 冒険者召喚ボタンの表示制御
+        const summonBtn = document.getElementById('summonBtn');
+        if (summonBtn) {
+            if (!this.isDiscovered && this.timeManager.currentDay < this.discoveryDay) {
+                summonBtn.style.display = 'inline-block';
+            } else {
+                summonBtn.style.display = 'none';
             }
         }
     }
@@ -258,9 +279,17 @@ class GameManager {
             this.updateUI();
         }
 
-        const spawnChance = 0.001 + (this.timeManager.currentDay * 0.0002);
-        if (Math.random() < spawnChance) {
-            this.spawnAdventurer();
+        // 3日経過でダンジョン発見
+        if (!this.isDiscovered && this.timeManager.currentDay >= this.discoveryDay) {
+            this.discoverDungeon();
+        }
+
+        // 発見された場合のみ冒険者が出現
+        if (this.isDiscovered) {
+            const spawnChance = 0.001 + (this.timeManager.currentDay * 0.0002);
+            if (Math.random() < spawnChance) {
+                this.spawnAdventurer();
+            }
         }
 
         this.adventurers.forEach((adventurer, index) => {
@@ -309,6 +338,31 @@ class GameManager {
         this.addDP(dailyIncome);
         this.addLog(`新しい日が始まった！ ${this.timeManager.getDayString()}`, 'info');
         this.addLog(`ダンジョン収入: +${dailyIncome}DP`, 'success');
+
+        // 発見までのカウントダウン
+        if (!this.isDiscovered) {
+            const daysLeft = this.discoveryDay - this.timeManager.currentDay;
+            if (daysLeft > 0) {
+                this.addLog(`冒険者発見まであと${daysLeft}日...`, 'warning');
+            }
+        }
+    }
+
+    discoverDungeon() {
+        this.isDiscovered = true;
+        this.addLog('冒険者にダンジョンを発見された！', 'danger');
+        this.addLog('今後、冒険者が定期的に襲来します！', 'danger');
+        this.updateUI();
+    }
+
+    summonAdventurers() {
+        if (!this.isDiscovered) {
+            this.discoverDungeon();
+            // 即座に冒険者をスポーン
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => this.spawnAdventurer(), i * 1000);
+            }
+        }
     }
 
     showDayReport() {

@@ -182,6 +182,9 @@ class DungeonBuilder {
     constructor() {
         this.selectedEntity = null;
         this.placementMode = false;
+        this.moveMode = false;
+        this.movingEntity = null;
+        this.movingFrom = null;
     }
 
     addFloor() {
@@ -215,22 +218,124 @@ class DungeonBuilder {
     }
 
     placeEntityAt(x, y) {
-        if (!this.selectedEntity || !this.placementMode) return false;
-
         const floor = gameManager.dungeonData.getFloor(dungeonViewer.currentFloor);
         const tileX = Math.floor(x / dungeonViewer.tileSize);
         const tileY = Math.floor(y / dungeonViewer.tileSize);
 
-        if (floor.placeEntity(this.selectedEntity.data, tileX, tileY)) {
-            gameManager.addLog(`${this.selectedEntity.data.name}を配置しました`, 'success');
-            this.placementMode = false;
-            this.selectedEntity = null;
-            dungeonViewer.render();
-            return true;
-        } else {
-            gameManager.addLog('その場所には配置できません', 'warning');
+        // 移動モードの場合
+        if (this.moveMode && this.movingEntity) {
+            if (this.completeMoveEntity(tileX, tileY)) {
+                return true;
+            }
             return false;
         }
+
+        // 配置モードの場合
+        if (this.selectedEntity && this.placementMode) {
+            if (floor.placeEntity(this.selectedEntity.data, tileX, tileY)) {
+                gameManager.addLog(`${this.selectedEntity.data.name}を配置しました`, 'success');
+                this.placementMode = false;
+                this.selectedEntity = null;
+                dungeonViewer.render();
+                return true;
+            } else {
+                gameManager.addLog('その場所には配置できません', 'warning');
+                return false;
+            }
+        }
+
+        // 既存エンティティをクリックした場合（移動開始）
+        const tile = floor.grid[tileY][tileX];
+        if (tile && (tile.entity || tile.type === 'core' || tile.type === 'entrance' || tile.type === 'stairs')) {
+            this.startMoveEntity(tileX, tileY, tile);
+            return true;
+        }
+
+        return false;
+    }
+
+    startMoveEntity(x, y, tile) {
+        const floor = gameManager.dungeonData.getFloor(dungeonViewer.currentFloor);
+
+        if (tile.entity) {
+            // 通常のエンティティ（モンスター、罠、宝箱）
+            this.moveMode = true;
+            this.movingEntity = tile.entity;
+            this.movingFrom = { x, y, type: 'entity' };
+            gameManager.addLog(`${tile.entity.name || tile.entity.type}を移動中... 新しい場所をクリックしてください`, 'info');
+        } else if (tile.type === 'core' || tile.type === 'entrance' || tile.type === 'stairs') {
+            // 特殊タイル
+            this.moveMode = true;
+            this.movingEntity = { type: tile.type };
+            this.movingFrom = { x, y, type: 'special' };
+            const nameMap = {
+                'core': 'ダンジョンコア',
+                'entrance': '入口',
+                'stairs': '階段'
+            };
+            gameManager.addLog(`${nameMap[tile.type]}を移動中... 新しい場所をクリックしてください`, 'info');
+        }
+
+        dungeonViewer.render();
+    }
+
+    completeMoveEntity(newX, newY) {
+        const floor = gameManager.dungeonData.getFloor(dungeonViewer.currentFloor);
+
+        if (!floor.isValidPosition(newX, newY)) {
+            gameManager.addLog('その場所には移動できません', 'warning');
+            return false;
+        }
+
+        const targetTile = floor.grid[newY][newX];
+
+        // 移動先に何かある場合は移動できない
+        if (targetTile.entity || targetTile.type === 'core' || targetTile.type === 'entrance' || targetTile.type === 'stairs') {
+            gameManager.addLog('その場所には既に何かがあります', 'warning');
+            return false;
+        }
+
+        // 移動先が壁の場合は移動できない
+        if (targetTile.type === 'wall') {
+            gameManager.addLog('壁には配置できません', 'warning');
+            return false;
+        }
+
+        // 移動実行
+        if (this.movingFrom.type === 'entity') {
+            // 通常エンティティの移動
+            floor.removeEntity(this.movingFrom.x, this.movingFrom.y);
+            floor.placeEntity(this.movingEntity, newX, newY);
+            gameManager.addLog('移動完了しました', 'success');
+        } else if (this.movingFrom.type === 'special') {
+            // 特殊タイルの移動
+            const oldTile = floor.grid[this.movingFrom.y][this.movingFrom.x];
+            const specialType = this.movingEntity.type;
+
+            // 元の場所を通常の床にする
+            oldTile.type = 'floor';
+            oldTile.entity = null;
+
+            // 新しい場所に特殊タイルを配置
+            targetTile.type = specialType;
+
+            // コアの場合は位置も更新
+            if (specialType === 'core' && gameManager.dungeonCore) {
+                gameManager.dungeonCore.x = newX;
+                gameManager.dungeonCore.y = newY;
+                targetTile.entity = gameManager.dungeonCore;
+            }
+
+            gameManager.addLog('移動完了しました', 'success');
+        }
+
+        // 移動モードを解除
+        this.moveMode = false;
+        this.movingEntity = null;
+        this.movingFrom = null;
+
+        dungeonViewer.render();
+        return true;
     }
 }
 

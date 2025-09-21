@@ -52,6 +52,7 @@
                 </div>
                 <div class="header-buttons">
                     <button onclick="gameManager.saveGame()">セーブ</button>
+                    <button id="summonBtn" onclick="gameManager.summonAdventurers()" style="display:none;">冒険者を呼ぶ</button>
                     <button onclick="gameManager.showMenu()">メニュー</button>
                 </div>
             </header>
@@ -64,6 +65,7 @@
                             <button class="tab-btn" data-tab="monsters">モンスター</button>
                             <button class="tab-btn" data-tab="traps">罠</button>
                             <button class="tab-btn" data-tab="treasures">宝箱</button>
+                            <button class="tab-btn" data-tab="help">操作説明</button>
                         </div>
                         <div class="tab-content" id="buildTab">
                             <h3>ダンジョン建設</h3>
@@ -89,6 +91,31 @@
                         <div class="tab-content" id="treasuresTab" style="display:none;">
                             <h3>宝箱配置</h3>
                             <div class="treasure-list" id="treasureList"></div>
+                        </div>
+                        <div class="tab-content" id="helpTab" style="display:none;">
+                            <h3>操作説明</h3>
+                            <div class="help-content">
+                                <h4>基本操作</h4>
+                                <ul style="color: #aaaacc; font-size: 0.9rem; line-height: 1.5;">
+                                    <li>タブから配置したいものを選択</li>
+                                    <li>マップ上をクリックして配置</li>
+                                    <li>配置済みのものをクリックで移動開始</li>
+                                    <li>黄色枠が移動中のアイテム</li>
+                                </ul>
+                                <h4>移動可能なもの</h4>
+                                <ul style="color: #aaaacc; font-size: 0.9rem; line-height: 1.5;">
+                                    <li>モンスター・罠・宝箱</li>
+                                    <li>ダンジョンコア（赤いCORE）</li>
+                                    <li>入口（入）</li>
+                                    <li>階段（階）</li>
+                                </ul>
+                                <h4>特殊機能</h4>
+                                <ul style="color: #aaaacc; font-size: 0.9rem; line-height: 1.5;">
+                                    <li>3日目まで「冒険者を呼ぶ」ボタン使用可</li>
+                                    <li>冒険者がコアに到達すると敗北</li>
+                                    <li>1日（現実1分）毎に自動セーブ</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
 

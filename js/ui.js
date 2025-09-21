@@ -61,8 +61,17 @@ class DungeonViewer {
         this.ctx.fillStyle = this.colors[tile.type];
         this.ctx.fillRect(px, py, this.tileSize, this.tileSize);
 
-        this.ctx.strokeStyle = '#1a1a2e';
-        this.ctx.strokeRect(px, py, this.tileSize, this.tileSize);
+        // 移動モードの場合、選択中のタイルをハイライト
+        if (dungeonBuilder.moveMode && dungeonBuilder.movingFrom &&
+            dungeonBuilder.movingFrom.x === x && dungeonBuilder.movingFrom.y === y) {
+            this.ctx.strokeStyle = '#ffff00';
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(px, py, this.tileSize, this.tileSize);
+            this.ctx.lineWidth = 1;
+        } else {
+            this.ctx.strokeStyle = '#1a1a2e';
+            this.ctx.strokeRect(px, py, this.tileSize, this.tileSize);
+        }
 
         if (tile.type === 'entrance') {
             this.ctx.fillStyle = '#ffffff';
@@ -160,7 +169,8 @@ function setupTabs() {
         'build': document.getElementById('buildTab'),
         'monsters': document.getElementById('monstersTab'),
         'traps': document.getElementById('trapsTab'),
-        'treasures': document.getElementById('treasuresTab')
+        'treasures': document.getElementById('treasuresTab'),
+        'help': document.getElementById('helpTab')
     };
 
     tabs.forEach(tab => {
