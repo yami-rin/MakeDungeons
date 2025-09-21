@@ -368,13 +368,13 @@ class DungeonBuilder {
             // 通常のエンティティ（モンスター、罠、宝箱）
             this.moveMode = true;
             this.movingEntity = tile.entity;
-            this.movingFrom = { x, y, type: 'entity', originalTileType: tile.type };
+            this.movingFrom = { x, y, type: 'entity', floor: dungeonViewer.currentFloor, originalTileType: tile.type };
             gameManager.addLog(`${tile.entity.name || tile.entity.type}を移動中... 新しい場所をクリックしてください`, 'info');
         } else if (tile.type === 'core' || tile.type === 'entrance' || tile.type === 'stairs') {
             // 特殊タイル
             this.moveMode = true;
             this.movingEntity = { type: tile.type };
-            this.movingFrom = { x, y, type: 'special' };
+            this.movingFrom = { x, y, type: 'special', floor: dungeonViewer.currentFloor };
             const nameMap = {
                 'core': 'ダンジョンコア',
                 'entrance': '入口',
@@ -387,14 +387,15 @@ class DungeonBuilder {
     }
 
     completeMoveEntity(newX, newY) {
-        const floor = gameManager.dungeonData.getFloor(dungeonViewer.currentFloor);
+        const currentFloor = gameManager.dungeonData.getFloor(dungeonViewer.currentFloor);
+        const oldFloor = gameManager.dungeonData.getFloor(this.movingFrom.floor);
 
-        if (!floor.isValidPosition(newX, newY)) {
+        if (!currentFloor.isValidPosition(newX, newY)) {
             gameManager.addLog('その場所には移動できません', 'warning');
             return false;
         }
 
-        const targetTile = floor.grid[newY][newX];
+        const targetTile = currentFloor.grid[newY][newX];
 
         // 移動先に何かある場合は移動できない
         if (targetTile.entity || targetTile.type === 'core' || targetTile.type === 'entrance' || targetTile.type === 'stairs') {
@@ -411,17 +412,23 @@ class DungeonBuilder {
         // 移動実行
         if (this.movingFrom.type === 'entity') {
             // 通常エンティティの移動
-            const oldTile = floor.grid[this.movingFrom.y][this.movingFrom.x];
-            // 元の場所からエンティティを削除（タイルタイプは保持）
+            // 元のフロアから削除
+            const oldTile = oldFloor.grid[this.movingFrom.y][this.movingFrom.x];
             oldTile.entity = null;
-            // 新しい場所にエンティティを配置
-            floor.placeEntity(this.movingEntity, newX, newY);
+
+            // 新しいフロアに配置
+            currentFloor.placeEntity(this.movingEntity, newX, newY);
+
+            // フロアが異なる場合はログを出力
+            if (this.movingFrom.floor !== dungeonViewer.currentFloor) {
+                gameManager.addLog(`${this.movingFrom.floor}階から${dungeonViewer.currentFloor}階へ移動しました`, 'info');
+            }
             gameManager.addLog('移動完了しました', 'success');
         } else if (this.movingFrom.type === 'special') {
             // 特殊タイルの移動
-            const oldTile = floor.grid[this.movingFrom.y][this.movingFrom.x];
+            const oldTile = oldFloor.grid[this.movingFrom.y][this.movingFrom.x];
             const specialType = this.movingEntity.type;
-            const oldKey = `${dungeonViewer.currentFloor}-${this.movingFrom.x}-${this.movingFrom.y}`;
+            const oldKey = `${this.movingFrom.floor}-${this.movingFrom.x}-${this.movingFrom.y}`;
             const newKey = `${dungeonViewer.currentFloor}-${newX}-${newY}`;
 
             // 元の場所のタイルタイプを復元
@@ -438,12 +445,16 @@ class DungeonBuilder {
             this.specialTileUnderlay[newKey] = targetTile.type;
             targetTile.type = specialType;
 
-            // コアの場合は位置も更新
-            if (specialType === 'core' && gameManager.dungeonCore) {
+            // コアの場合は位置も更新（1階のみ）
+            if (specialType === 'core' && gameManager.dungeonCore && dungeonViewer.currentFloor === 1) {
                 gameManager.dungeonCore.x = newX;
                 gameManager.dungeonCore.y = newY;
             }
 
+            // フロアが異なる場合はログを出力
+            if (this.movingFrom.floor !== dungeonViewer.currentFloor) {
+                gameManager.addLog(`${this.movingFrom.floor}階から${dungeonViewer.currentFloor}階へ移動しました`, 'info');
+            }
             gameManager.addLog('移動完了しました', 'success');
         }
 
