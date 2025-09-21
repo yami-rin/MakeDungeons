@@ -339,7 +339,8 @@ class GameManager {
         const level = Math.min(baseLevel + Math.floor(Math.random() * 3), 10);
         const adventurer = new Adventurer(name, level);
 
-        // 入口の位置を找してスポーン
+        // 入口の位置を探してスポーン（常に1階）
+        adventurer.currentFloor = 1;  // 必ず1階から開始
         const floor = this.dungeonData?.getFloor(1);
         if (floor) {
             for (let y = 0; y < floor.height; y++) {
@@ -357,7 +358,7 @@ class GameManager {
 
         this.adventurers.push(adventurer);
         this.timeManager.todayAdventurers++;
-        this.addLog(`${name} (Lv.${level}) が侵入してきた！`, 'danger');
+        this.addLog(`${name} (Lv.${level}) が1階に侵入してきた！`, 'danger');
     }
 
     startNewDay() {

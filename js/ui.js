@@ -47,8 +47,11 @@ class DungeonViewer {
             }
         }
 
+        // 現在の階層にいる冒険者のみを表示
         gameManager.adventurers.forEach(adventurer => {
-            this.drawAdventurer(adventurer);
+            if (adventurer.currentFloor === this.currentFloor) {
+                this.drawAdventurer(adventurer);
+            }
         });
 
         document.getElementById('currentFloor').textContent = `${this.currentFloor}F`;

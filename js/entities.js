@@ -77,13 +77,14 @@ class Adventurer {
         this.lastMove = null;
         this.stuckCounter = 0;
         this.escapeMode = false; // 宝箱を取得後、脱出モード
+        this.currentFloor = 1; // 現在いる階層
     }
 
     update(deltaTime) {
         if (this.isDead || this.hasEscaped) return;
 
-        // ダンジョンデータの取得
-        const floor = gameManager.dungeonData?.getFloor(1);
+        // ダンジョンデータの取得（現在の階層）
+        const floor = gameManager.dungeonData?.getFloor(this.currentFloor);
         if (!floor) return;
 
         // グリッド移動（上下左右のみ）
@@ -120,9 +121,9 @@ class Adventurer {
             this.isDead = true;
         }
 
-        // 入口での脱出判定（HP半分以下または宝箱所持時のみ）
+        // 入口での脱出判定（HP半分以下または宝箱所持時のみ、1階のみ）
         const currentTile = floor.grid[Math.floor(this.y)][Math.floor(this.x)];
-        if (currentTile.type === 'entrance') {
+        if (currentTile.type === 'entrance' && this.currentFloor === 1) {
             // HPが半分以下または宝箱を持っている場合のみ脱出
             if (this.hp <= this.maxHp / 2 || this.treasureCollected > 0) {
                 this.hasEscaped = true;
@@ -138,6 +139,28 @@ class Adventurer {
                     }
                 } else {
                     gameManager.addLog(`${this.name}がHPが少ないため撤退した！`, 'warning');
+                }
+            }
+        } else if (currentTile.type === 'stairs') {
+            // 階段に到達したら次の階へ移動（勇者のみ）
+            if (this.name.includes('勇者') && this.currentFloor < gameManager.dungeonData.floors.length) {
+                this.currentFloor++;
+                // 次の階の階段位置にワープ
+                const nextFloor = gameManager.dungeonData?.getFloor(this.currentFloor);
+                if (nextFloor) {
+                    // 階段を探す
+                    for (let y = 0; y < nextFloor.height; y++) {
+                        for (let x = 0; x < nextFloor.width; x++) {
+                            if (nextFloor.grid[y][x].type === 'stairs' || nextFloor.grid[y][x].type === 'entrance') {
+                                this.x = x;
+                                this.y = y;
+                                this.targetX = x;
+                                this.targetY = y;
+                                gameManager.addLog(`${this.name}が${this.currentFloor}階へ移動した！`, 'info');
+                                return;
+                            }
+                        }
+                    }
                 }
             }
         }
