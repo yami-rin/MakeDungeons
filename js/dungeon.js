@@ -84,6 +84,7 @@ class Floor {
         this.height = 10;
         this.grid = this.createEmptyGrid();
         this.rooms = [];
+        this.wallTracker = {};  // 壁の状態を追跡
         this.generateBasicLayout();
     }
 
@@ -324,13 +325,16 @@ class DungeonBuilder {
             // 通常のエンティティ（モンスター、罠、宝箱）
             this.moveMode = true;
             this.movingEntity = tile.entity;
-            this.movingFrom = { x, y, type: 'entity' };
+            this.movingFrom = { x, y, type: 'entity', originalTileType: tile.type };
             gameManager.addLog(`${tile.entity.name || tile.entity.type}を移動中... 新しい場所をクリックしてください`, 'info');
         } else if (tile.type === 'core' || tile.type === 'entrance' || tile.type === 'stairs') {
             // 特殊タイル
             this.moveMode = true;
             this.movingEntity = { type: tile.type };
-            this.movingFrom = { x, y, type: 'special' };
+            // 特殊タイルの下に壁があるかどうかを記録
+            this.movingFrom = { x, y, type: 'special', wasOnWall: false };
+            // 特殊タイルを移動する前に、元の場所の状態を保存
+            this.originalFloorType = 'floor';  // デフォルトは床
             const nameMap = {
                 'core': 'ダンジョンコア',
                 'entrance': '入口',
@@ -367,29 +371,34 @@ class DungeonBuilder {
         // 移動実行
         if (this.movingFrom.type === 'entity') {
             // 通常エンティティの移動
-            floor.removeEntity(this.movingFrom.x, this.movingFrom.y);
+            const oldTile = floor.grid[this.movingFrom.y][this.movingFrom.x];
+            // 元の場所からエンティティを削除（タイルタイプは保持）
+            oldTile.entity = null;
+            // 新しい場所にエンティティを配置
             floor.placeEntity(this.movingEntity, newX, newY);
             gameManager.addLog('移動完了しました', 'success');
         } else if (this.movingFrom.type === 'special') {
             // 特殊タイルの移動
             const oldTile = floor.grid[this.movingFrom.y][this.movingFrom.x];
             const specialType = this.movingEntity.type;
-            const targetOldType = targetTile.type;  // 移動先の元のタイプを保存
 
-            // 元の場所を通常の床にする（特殊タイルが壁上にあった場合は壁のまま）
-            if (oldTile.type === specialType) {
-                oldTile.type = 'floor';
-            }
+            // 元の場所を床に戻す（壁の上にあった場合は壁を保持）
+            oldTile.type = this.originalFloorType || 'floor';
             oldTile.entity = null;
 
-            // 新しい場所に特殊タイルを配置（壁の上でも可能）
+            // 新しい場所に特殊タイルを配置
+            // 移動先が壁の場合、その状態を記録
+            if (targetTile.type === 'wall') {
+                this.originalFloorType = 'wall';
+            } else {
+                this.originalFloorType = 'floor';
+            }
             targetTile.type = specialType;
 
             // コアの場合は位置も更新
             if (specialType === 'core' && gameManager.dungeonCore) {
                 gameManager.dungeonCore.x = newX;
                 gameManager.dungeonCore.y = newY;
-                // entityフィールドは使用しない
             }
 
             gameManager.addLog('移動完了しました', 'success');

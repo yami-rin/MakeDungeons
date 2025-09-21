@@ -204,13 +204,6 @@ class GameManager {
         if (dayElement) dayElement.textContent = this.timeManager.getDayString();
         if (timeElement) timeElement.textContent = this.timeManager.getTimeString();
 
-        if (this.dungeonCore) {
-            const coreHPElement = document.getElementById('coreHPValue');
-            if (coreHPElement) {
-                coreHPElement.textContent = `${this.dungeonCore.hp}/${this.dungeonCore.maxHp}`;
-            }
-        }
-
         // 冒険者召喚ボタンの表示制御
         const summonBtn = document.getElementById('summonBtn');
         if (summonBtn) {

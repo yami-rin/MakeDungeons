@@ -64,7 +64,7 @@ class Adventurer {
         this.maxHp = this.hp;
         this.attack = level * 4;
         this.defense = level * 2;
-        this.speed = 50;
+        this.speed = 2;  // 大幅に減速（1マスずつ移動）
         this.x = 5;
         this.y = 1;
         this.targetX = 5;
@@ -119,22 +119,23 @@ class Adventurer {
             this.isDead = true;
         }
 
-        // 入口または階段に到達したら脱出
+        // 入口からのみ脱出可能
         const currentTile = floor.grid[Math.floor(this.y)][Math.floor(this.x)];
-        if (this.escapeMode && currentTile.type === 'entrance') {
+        if (currentTile.type === 'entrance') {
             this.hasEscaped = true;
-            // 宝箱の価値に応じて評判を追加
-            const reputationGain = Math.floor(this.treasureCollected / 50);
-            if (reputationGain > 0) {
-                gameManager.reputation += reputationGain;
-                gameManager.addLog(`${this.name}が宝物を持って脱出！評判+${reputationGain}`, 'success');
-                gameManager.updateUI();
+            // 宝箱を持っている場合は評判を追加
+            if (this.treasureCollected > 0) {
+                const reputationGain = Math.floor(this.treasureCollected / 50);
+                if (reputationGain > 0) {
+                    gameManager.reputation += reputationGain;
+                    gameManager.addLog(`${this.name}が宝物を持って脱出！評判+${reputationGain}`, 'success');
+                    gameManager.updateUI();
+                } else {
+                    gameManager.addLog(`${this.name}が入口から脱出した！`, 'warning');
+                }
             } else {
                 gameManager.addLog(`${this.name}が入口から脱出した！`, 'warning');
             }
-        } else if (!this.escapeMode && currentTile.type === 'stairs') {
-            this.hasEscaped = true;
-            gameManager.addLog(`${this.name}が階段から脱出した！`, 'warning');
         }
     }
 
