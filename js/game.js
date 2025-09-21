@@ -340,19 +340,19 @@ class GameManager {
                 return;
             }
 
-            if (adventurer.isDead || adventurer.hasEscaped) {
-                this.adventurers.splice(index, 1);
-                if (adventurer.isDead) {
-                    const reward = Math.floor(adventurer.level * 50 + Math.random() * 50);
-                    this.addDP(reward);
-                    this.reputation += 1;
-                    this.addLog(`${adventurer.name}を倒した！ +${reward}DP`, 'success');
-                } else {
-                    this.reputation += 2;
-                    this.addLog(`${adventurer.name}が生還した！`, 'warning');
-                }
+            if (adventurer.isDead) {
+                const reward = Math.floor(adventurer.level * 50 + Math.random() * 50);
+                this.addDP(reward);
+                this.reputation += 1;
+                this.addLog(`${adventurer.name}を倒した！ +${reward}DP`, 'success');
                 this.updateUI();
             }
+        });
+
+        // 死亡または脱出した冒険者を削除（パフォーマンス最適化）
+        if (this.adventurers.some(adv => adv.isDead || adv.hasEscaped)) {
+            this.adventurers = this.adventurers.filter(adv => !adv.isDead && !adv.hasEscaped);
+        }
         });
 
         dungeonViewer.render();
@@ -400,6 +400,9 @@ class GameManager {
 
         // 冒険者カウントをリセット
         this.dailyAdventurerCount = 0;
+
+        // 死亡した冒険者をクリーンアップ
+        this.adventurers = this.adventurers.filter(adv => !adv.isDead && !adv.hasEscaped);
 
         // 発見されている場合、評判に基づいて冒険者を生成
         if (this.isDiscovered) {

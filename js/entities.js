@@ -1,11 +1,13 @@
 class Monster {
-    constructor(name, level, cost) {
+    constructor(name, level, cost, isBoss = false) {
         this.name = name;
         this.level = level;
         this.cost = cost;
-        this.hp = level * 10;
-        this.attack = level * 3;
-        this.defense = level * 2;
+        this.isBoss = isBoss;
+        this.hp = isBoss ? level * 30 : level * 10;
+        this.maxHp = this.hp;
+        this.attack = isBoss ? level * 5 : level * 3;
+        this.defense = isBoss ? level * 4 : level * 2;
         this.type = 'monster';
     }
 
@@ -569,7 +571,9 @@ const monsterTemplates = [
     { name: 'ゴブリン', level: 2, cost: 100 },
     { name: 'オーク', level: 3, cost: 200 },
     { name: 'トロール', level: 4, cost: 400 },
-    { name: 'ドラゴン', level: 5, cost: 800 }
+    { name: 'ドラゴン', level: 5, cost: 800 },
+    { name: 'リッチ', level: 6, cost: 1500, isBoss: true },
+    { name: '魔王', level: 10, cost: 5000, isBoss: true }
 ];
 
 const trapTemplates = [
@@ -594,17 +598,20 @@ function createMonsterList() {
 
     monsterTemplates.forEach(template => {
         const item = document.createElement('div');
-        item.className = 'entity-item';
+        item.className = template.isBoss ? 'entity-item boss-item' : 'entity-item';
+        const attack = template.isBoss ? template.level * 5 : template.level * 3;
+        const defense = template.isBoss ? template.level * 4 : template.level * 2;
+        const hp = template.isBoss ? template.level * 30 : template.level * 10;
         item.innerHTML = `
             <div class="entity-info">
-                <div class="entity-name">${template.name}</div>
-                <div class="entity-stats">Lv.${template.level} 攻撃:${template.level * 3} 防御:${template.level * 2}</div>
+                <div class="entity-name">${template.isBoss ? '👑 ' : ''}${template.name}</div>
+                <div class="entity-stats">Lv.${template.level} HP:${hp} 攻撃:${attack} 防御:${defense}</div>
             </div>
             <div class="entity-cost">DP: ${template.cost}</div>
         `;
         item.onclick = () => {
             if (gameManager.spendDP(template.cost)) {
-                const monster = new Monster(template.name, template.level, template.cost);
+                const monster = new Monster(template.name, template.level, template.cost, template.isBoss);
                 dungeonBuilder.selectEntity('monster', monster);
             } else {
                 gameManager.addLog('DPが不足しています', 'warning');

@@ -127,10 +127,23 @@ class DungeonViewer {
 
         if (entity.type === 'monster') {
             // モンスターの表示
-            const shortName = entity.name.substring(0, 3);
-            this.ctx.fillText(shortName, centerX, centerY - 5);
-            this.ctx.font = '9px sans-serif';
-            this.ctx.fillText(`Lv${entity.level}`, centerX, centerY + 7);
+            if (entity.isBoss) {
+                // ボスモンスターは特別な表示
+                this.ctx.strokeStyle = '#8b5cf6';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+                this.ctx.font = '12px sans-serif';
+                this.ctx.fillText('👑', centerX, centerY - 8);
+                this.ctx.font = '9px sans-serif';
+                this.ctx.fillText(`${entity.name.substring(0, 3)}`, centerX, centerY + 3);
+                this.ctx.font = '8px sans-serif';
+                this.ctx.fillText(`Lv${entity.level}`, centerX, centerY + 12);
+            } else {
+                const shortName = entity.name.substring(0, 3);
+                this.ctx.fillText(shortName, centerX, centerY - 5);
+                this.ctx.font = '9px sans-serif';
+                this.ctx.fillText(`Lv${entity.level}`, centerX, centerY + 7);
+            }
         } else if (entity.type === 'trap') {
             // 罠の表示
             this.ctx.font = '16px sans-serif';
