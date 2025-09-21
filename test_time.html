@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>時間システムテスト</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #2a2a3e;
+            color: #fff;
+        }
+        .status {
+            margin: 10px 0;
+            font-size: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>時間システムデバッグ</h1>
+    <div class="status">
+        <div>Day: <span id="day">Day 1</span></div>
+        <div>Time: <span id="time">00:00</span></div>
+        <div>Elapsed: <span id="elapsed">0</span> ms</div>
+        <div>Progress: <span id="progress">0</span>%</div>
+    </div>
+
+    <div>
+        <button onclick="testTime()">時間テスト開始</button>
+        <button onclick="skipTime()">30秒スキップ</button>
+        <button onclick="checkGameManager()">GameManager確認</button>
+    </div>
+
+    <script>
+        class TestTimeManager {
+            constructor() {
+                this.currentDay = 1;
+                this.currentTime = 0;
+                this.dayDuration = 60000; // 1分
+                this.dayStartTime = Date.now();
+            }
+
+            update() {
+                const elapsed = Date.now() - this.dayStartTime;
+                this.currentTime = (elapsed / this.dayDuration) * 100;
+
+                document.getElementById('elapsed').textContent = elapsed;
+                document.getElementById('progress').textContent = this.currentTime.toFixed(2);
+
+                if (elapsed >= this.dayDuration) {
+                    this.endDay();
+                }
+
+                return this.currentTime;
+            }
+
+            endDay() {
+                this.currentDay++;
+                this.dayStartTime = Date.now();
+                this.currentTime = 0;
+                alert('Day ' + this.currentDay + ' started!');
+            }
+
+            getTimeString() {
+                const hours = Math.floor(this.currentTime * 24 / 100);
+                const minutes = Math.floor((this.currentTime * 24 * 60 / 100) % 60);
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            }
+
+            getDayString() {
+                return `Day ${this.currentDay}`;
+            }
+        }
+
+        let testManager = new TestTimeManager();
+        let interval = null;
+
+        function testTime() {
+            if (interval) clearInterval(interval);
+
+            testManager = new TestTimeManager();
+            interval = setInterval(() => {
+                testManager.update();
+                document.getElementById('day').textContent = testManager.getDayString();
+                document.getElementById('time').textContent = testManager.getTimeString();
+            }, 100);
+        }
+
+        function skipTime() {
+            testManager.dayStartTime -= 30000;
+        }
+
+        function checkGameManager() {
+            console.log('Checking if gameManager exists...');
+            if (typeof gameManager !== 'undefined') {
+                console.log('GameManager found!', gameManager);
+                console.log('TimeManager:', gameManager.timeManager);
+            } else {
+                console.log('GameManager not found');
+            }
+        }
+    </script>
+
+    <script src="js/game.js"></script>
+    <script src="js/dungeon.js"></script>
+    <script src="js/entities.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

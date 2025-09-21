@@ -2,7 +2,7 @@ class TimeManager {
     constructor() {
         this.currentDay = 1;
         this.currentTime = 0;
-        this.dayDuration = 600000;
+        this.dayDuration = 60000;  // デバッグ用: 1分で1日（本番は600000=10分）
         this.dayStartTime = Date.now();
         this.todayAdventurers = 0;
         this.todayDPEarned = 0;
@@ -60,10 +60,8 @@ class GameManager {
     }
 
     init() {
-        this.dungeonData = new DungeonData();
-        this.dungeonCore = this.dungeonData.initializeDungeonCore();
-        this.updateUI();
-        this.startGameLoop();
+        // この関数は現在使用していない
+        // startNewGameとcontinueGameで初期化を行っている
     }
 
     startNewGame() {
@@ -80,6 +78,10 @@ class GameManager {
         this.updateUI();
         this.addLog('新しいダンジョンの運営を開始しました！', 'success');
         this.addLog('ダンジョンコアを守り抜け！', 'warning');
+
+        // デバッグ用
+        console.log('Game started. Time system initialized:', this.timeManager);
+        console.log('Day duration (ms):', this.timeManager.dayDuration);
     }
 
     continueGame() {
@@ -172,6 +174,7 @@ class GameManager {
         document.getElementById('titleScreen').classList.remove('active');
         document.getElementById('gameScreen').classList.add('active');
         dungeonViewer.init();
+        this.startGameLoop();  // ゲーム画面表示時にゲームループを開始
     }
 
     showMenu() {
@@ -232,7 +235,10 @@ class GameManager {
     }
 
     startGameLoop() {
-        setInterval(() => {
+        if (this.gameLoopInterval) {
+            clearInterval(this.gameLoopInterval);
+        }
+        this.gameLoopInterval = setInterval(() => {
             if (!this.isPaused) {
                 this.update();
             }
@@ -246,8 +252,11 @@ class GameManager {
         const deltaTime = (now - this.lastUpdate) / 1000;
         this.lastUpdate = now;
 
-        this.timeManager.update();
-        this.updateUI();
+        // 時間を更新
+        if (this.timeManager) {
+            this.timeManager.update();
+            this.updateUI();
+        }
 
         const spawnChance = 0.001 + (this.timeManager.currentDay * 0.0002);
         if (Math.random() < spawnChance) {
